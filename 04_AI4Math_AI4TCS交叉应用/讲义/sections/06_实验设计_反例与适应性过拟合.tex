@@ -1,0 +1,155 @@
+\chapter{实验设计、反例与适应性过拟合}
+
+\section{从最小 claim 反推实验}
+
+实验开始前写一句可证伪 claim：
+\begin{quote}
+在固定总内存和指定 Zipf/drift 数据生成器上，方法 A 相比 baseline B 降低重频 key 的 $95\%$ 分位绝对误差；当预测误差达到预设上限时，退化不超过阈值 $\tau$。
+\end{quote}
+这句话决定需要控制内存、数据分布、key 子集、误差分位数、prediction error 和 robustness 阈值。若实验矩阵中没有这些变量，就无法支持 claim。
+
+把结论分为：
+\begin{description}
+  \item[confirmatory] 预先指定主指标、方向和比较，回答核心问题；
+  \item[exploratory] 观察额外模式、相关性和意外失败，产生新假设。
+\end{description}
+探索结果可以报告，但不能事后伪装成预注册主结论。
+
+\section{实验单位与独立性}
+
+“跑了 100 次”是否有意义取决于独立单位。若 100 个 seed 共用同一条流，只改变 hash，估计的是算法随机性；若同时重采样流，混合了数据与算法随机性。应分层记录：
+\[
+\text{data seed},\quad
+\text{algorithm seed},\quad
+\text{generator/model seed},\quad
+\text{split seed}.
+\]
+重复使用同一模型 checkpoint 和同一 validation 反馈也会产生相关性，不能简单当 100 个独立样本。
+
+\section{Baseline 和预算公平性}
+
+至少包括：
+\begin{enumerate}
+  \item exact oracle，只用于真值和小规模成本参照；
+  \item 经典算法 baseline；
+  \item 无反馈/随机生成器 baseline；
+  \item 消融：去掉预测、反馈、某层 verifier 或 fallback；
+  \item 简单启发式，防止复杂模型只学到容易规则。
+\end{enumerate}
+
+预算必须同口径：内存包含参数与 metadata，搜索成本包含所有 verifier 查询，运行时间包含预处理与模型调用，证明成本至少记录 wall-clock、搜索步数和环境规模。
+
+\section{数据划分与冻结顺序}
+
+推荐顺序：先生成 development/validation 并公开规则；冻结候选空间、主指标和预算；再生成或封存 hidden/OOD；搜索结束冻结候选；最后只进行预定次数的审计。
+
+若 hidden 失败后继续修改候选，旧 hidden 已转化为训练信息。可以创建新 final set，但必须在日志中写明迭代轮次，不能仍称第一次 hidden 结果。
+
+\section{报告分布，不只报告平均值}
+
+对独立观测 $X_1,\ldots,X_m$，样本均值与标准误差为
+\[
+\bar X=\frac1m\sum_{j=1}^mX_j,
+\qquad
+\operatorname{SE}(\bar X)=\frac{s}{\sqrt m}.
+\]
+但 sketch 最大误差、搜索步数和运行时间常重尾或受 timeout 截断，均值不足。至少同时报告 median、四分位数、$95\%$/$99\%$ 分位、最大值、失败率和有效样本数。
+
+置信区间方法应匹配实验单位，可使用成对比较、bootstrap 或适当参数方法。若方法共享同一输入实例，优先报告 paired difference，而不是把两组当独立样本。
+
+\section{零失败不是零概率}
+
+固定候选在 $m$ 次独立 Bernoulli 测试中零失败，只说明样本中未观察到失败。常用“rule of three”给出约 $95\%$ 上置信量级 $3/m$，不是证明真实失败概率为 0。
+
+若想以 Hoeffding 控制经验失败率 $\widehat p$ 与真实分布失败率 $p$，固定候选和独立同分布假设下有
+\[
+\Prb\bigl[|\widehat p-p|\ge\varepsilon\bigr]
+\le 2e^{-2m\varepsilon^2}.
+\]
+因此
+\[
+m\ge\frac{\log(2/\delta)}{2\varepsilon^2}
+\]
+足以给出概率至少 $1-\delta$ 的加性估计。若候选是看过这些测试后选出的，不能直接套用同一固定候选界。
+
+\section{多次尝试与 winner's curse}
+
+从 $K$ 个候选中选验证分数最高者，即使每个候选真实性能相同，最大经验分数也会偏高。搜索轮数越多、反馈越细，偏差越严重。
+
+必须报告总候选数、有效等价类数、选择规则和最终独立复验。只展示“最佳 seed”相当于隐藏多重比较。模型超参数、prompt 和 verifier 阈值的试验也应计入搜索预算。
+
+\section{分布外和对抗测试}
+
+OOD 不是简单换一个 seed，而是改变生成机制：
+\begin{itemize}
+  \item 训练/搜索用均匀，审计用 Zipf 或 burst；
+  \item 小规模搜索，大规模评估；
+  \item 随机图换成高聚类、链、星或近完全图；
+  \item 预测准确分布换成系统性漏掉 heavy hitter；
+  \item 数值范围、稀疏度、符号或边界条件变化；
+  \item 变量重命名、语法等价改写或不同 Lean 定义实现。
+\end{itemize}
+
+对抗测试应针对算法假设，而不是追求看起来复杂。一个两元素反例往往比百万规模随机输入更能说明漏洞。
+
+\section{Property-based testing 与 metamorphic relation}
+
+没有易得 oracle 时，可检查输入变换前后的关系。例如：
+\begin{itemize}
+  \item 图顶点重命名不应改变目标值；
+  \item 把流拆分后合并 sketch 应与整流处理一致；
+  \item 矩阵同时做合法基变换后代数恒等式仍成立；
+  \item 列表置换对声称 permutation-invariant 的函数不应改变结果；
+  \item 给调度实例所有处理时间乘同一常数，目标值应相应缩放。
+\end{itemize}
+Metamorphic tests 仍是测试证据，但能发现只记忆表示细节的候选。
+
+\section{反例最小化协议}
+
+定义复杂度度量 $s(x)$，例如节点数、流长度、最大整数或 AST 节点数。对失败输入反复尝试变换 $T_j$，只接受满足
+\[
+\operatorname{fails}(T_j(x))quad\text{且}\quad s(T_j(x))<s(x)
+\]
+的变换，直到局部不可再缩。
+
+最小反例报告应说明“相对于哪些缩小操作局部最小”，不要声称全局最小，除非做了完整枚举证明。
+
+\section{失败分类表}
+
+\begin{center}
+\begin{tabularx}{0.96\textwidth}{>{\bfseries}lX X}
+\toprule
+类别 & 例子 & 下一步 \\
+\midrule
+表示失败 & 语法错、非法状态、重复编码 & 收紧 grammar / 规范化 \\
+正确性失败 & 反例、proof goal 未关闭 & 缩小反例、补不变量 \\
+验证器失败 & oracle 不一致、timeout 当 pass & 修 verifier，重审历史候选 \\
+泛化失败 & validation 高、OOD 崩溃 & 降低反馈、扩分布、正则约束 \\
+资源失败 & 内存/时间超过预算 & 重新计费、简化候选 \\
+研究失败 & 与已知方法等价、无显著收益 & 文献对照、缩小或终止 claim \\
+\bottomrule
+\end{tabularx}
+\end{center}
+Verifier bug 是最高优先级：修复后所有依赖旧 verifier 的结果都需要重跑或标记失效。
+
+\section{可复现运行清单}
+
+每次运行保存：Git commit、环境 lock、硬件/软件版本、完整配置、所有 seed、数据生成参数、候选与 verifier hash、原始逐实例结果、聚合脚本、stderr/timeout、wall-clock 和停止原因。
+
+图表应由原始表脚本生成；不要手工修改最终数字。结果目录可包含生成物但应与公开仓库策略分开，避免把大数据、凭据或第三方受限材料推上 GitHub。
+
+\begin{warningbox}
+“统计显著”不等于效应有研究价值，“测试全部通过”不等于一般正确，“Lean 编译”不等于自然语言语义忠实。每个结论只能上升到其最强证据允许的等级。
+\end{warningbox}
+
+\begin{checkpointbox}
+\begin{enumerate}
+  \item 写出一个 confirmatory claim 和两个 exploratory 问题；
+  \item 区分 data、algorithm、model 和 split seed；
+  \item 为所有方法建立同口径预算表；
+  \item 解释零失败、Hoeffding 样本界和固定候选假设；
+  \item 设计一个 OOD 分布和两个 metamorphic relations；
+  \item 为一个反例定义复杂度与三个缩小操作；
+  \item 建立 verifier bug 后的历史结果失效规则。
+\end{enumerate}
+\end{checkpointbox}

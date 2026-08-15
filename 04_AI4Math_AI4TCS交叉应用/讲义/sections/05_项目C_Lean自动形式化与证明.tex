@@ -1,0 +1,182 @@
+\chapter{项目 C：Lean 自动形式化与随机算法证明}
+
+\section{第一题应当小而完整}
+
+目标不是复现大型 theorem-proving benchmark，而是经历完整链路：自然语言 $\to$ 数学形式 $\to$ Lean statement $\to$ lemma 依赖 $\to$ kernel proof $\to$ 语义审查。
+
+推荐梯度：
+\begin{enumerate}
+  \item 列表/状态的确定性大小不变量；
+  \item 有限集合上 indicator 的和等于事件基数；
+  \item 非空有限均匀样本空间概率总和为 1；
+  \item 两个或有限多个事件的 union bound；
+  \item 简化抽样估计器的无偏性；
+  \item 最后才挑战 reservoir sampling 分布或一般集中不等式。
+\end{enumerate}
+
+完整 Chernoff bound、连续分布和端到端 Count-Min theorem 需要更成熟的概率库经验，不适合作为第一条正式交付。
+
+\section{三列表保证 statement fidelity}
+
+以有限 union bound 为例：
+\begin{center}
+\begin{tabularx}{0.96\textwidth}{>{\bfseries}lX}
+\toprule
+层 & 内容 \\
+\midrule
+自然语言 & 在同一有限均匀样本空间中，若干事件并集的概率不超过各事件概率之和 \\
+数学式 & $\Pr[\bigcup_{i\in I}E_i]\le\sum_{i\in I}\Pr[E_i]$，$\Omega$ 有限非空 \\
+Lean 设计 & 选择 \code{Finset}/\code{Set} 表示事件族，定义均匀概率或复用概率库，显式给出有限性、可判定性与非空假设 \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+对齐时逐项检查：同一个样本空间、索引集有限、概率分母不为零、事件表示支持并集、数值域可比较。若 Lean statement 只证明两个事件，就不能在标题中写“任意事件族”。
+
+\section{先证明不含概率的结构 lemma}
+
+Union bound 的核心可先写成集合计数：
+\[
+\left|\bigcup_i E_i\right|\le\sum_i |E_i|.
+\]
+然后再处理除法与概率包装。类似地，抽样算法先证明状态大小、索引与逐步转换，再进入分布。
+
+这种分解有三点好处：
+\begin{enumerate}
+  \item 更容易在 mathlib 中找到已有 Finset/Set lemma；
+  \item 失败时能区分组合结构、代数归约和概率接口；
+  \item 未来替换均匀概率为一般测度时可复用结构层。
+\end{enumerate}
+
+\section{一个状态不变量起点}
+
+\begin{lstlisting}
+import Mathlib
+
+structure SampleState where
+  seen : Nat
+  kept : List Nat
+
+def SampleState.Inv (k : Nat) (s : SampleState) : Prop :=
+  s.kept.length <= k
+
+def SampleState.empty : SampleState :=
+  { seen := 0, kept := [] }
+
+theorem SampleState.empty_inv (k : Nat) :
+    SampleState.Inv k SampleState.empty := by
+  simp [SampleState.Inv, SampleState.empty]
+\end{lstlisting}
+这条 theorem 很简单，但接口完整：状态、容量参数、不变量、初始状态和证明都明确。下一步可定义一个只在未满时插入的转换，并证明保持 \code{Inv}；再进一步才加入随机替换位置。
+
+\section{随机性形式化的两条路线}
+
+\subsection{有限枚举路线}
+
+把 random tape 定义为有限类型，概率用满足事件的 tape 数量除以总数。优点是直观、可执行、适合小算法；缺点是重复建立概率代数，扩展到复杂独立性或分布较笨重。
+
+\subsection{mathlib 概率/测度路线}
+
+复用一般 measure、probability measure、随机变量与期望理论。优点是能连接成熟 theorem；缺点是类型类、可测性和积分接口学习成本高。初学项目可以先完成有限版本，再写一页“迁移到一般概率库还缺什么”。
+
+不要在同一 theorem 中混用自定义概率和 mathlib probability notation 而不写转换 lemma。
+
+\section{Autoformalization 的输入不只有题目一句话}
+
+高质量自动形式化输入应包含：
+\begin{itemize}
+  \item 术语定义和上下文；
+  \item 预期类型与数学域；
+  \item 可使用的 mathlib 概念；
+  \item 正例、边界例与反例；
+  \item 不允许补加的假设；
+  \item statement 对齐标准。
+\end{itemize}
+
+让模型自由“补齐合理条件”可能得到可证明但错误的 statement。更稳妥的流程是生成多个候选 statement，先用类型检查和有限例测试，再由人逐项对齐量词与假设。
+
+\section{Proof search 与 statement 生成分离}
+
+先冻结 statement $S$，再搜索 proof $p:S$。若 proof 搜索失败，不应默认修改 $S$；应分类：缺定义、缺 lemma、归纳结构不对、库 API 不熟或 statement 实际为假。
+
+若确实需要改 statement，创建新版本并记录差异：
+\begin{center}
+\begin{tabularx}{0.94\textwidth}{>{\bfseries}lX}
+\toprule
+字段 & 记录 \\
+\midrule
+Old statement & 原量词、假设与结论 \\
+New statement & 修改后的完整声明 \\
+Reason & 修复错误、缩小第一版范围或加入必要条件 \\
+Semantic effect & 更强、更弱、不同域或不同对象 \\
+Validation & 反例、人工对齐或已有数学来源 \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\section{Lean、SMT、穷举与随机测试分工}
+
+\begin{description}
+  \item[Lean] 组合抽象定义、归纳证明和库 theorem，提供 kernel-checked 证据；
+  \item[SMT/SAT] 快速处理有限约束、位向量、线性算术或找模型；
+  \item[穷举] 对小有限域建立强 oracle 并发现最小反例；
+  \item[随机测试] 扩展到大实例，筛查实现错误和分布外行为；
+  \item[Python reference] 生成数据、统计实验和与 Lean 可执行定义做 differential testing。
+\end{description}
+
+工具应形成证据梯度。随机测试发现反例可以推翻 theorem 候选；测试没发现反例不能代替 proof。
+
+\section{无占位验收}
+
+最终构建除了退出码为零，还应审计：
+\begin{itemize}
+  \item 是否出现 \code{sorry}、\code{admit} 或新增 \code{axiom}；
+  \item theorem 是否仍是冻结的 statement；
+  \item imports 是否意外引入同名 theorem 直接循环使用；
+  \item 是否依赖非预期 native/oracle 路径；
+  \item toolchain、manifest 和构建命令是否提交；
+  \item \code{\#print axioms theoremName} 在当前版本显示什么依赖。
+\end{itemize}
+
+使用经典选择等标准公理不一定是问题，但必须区分“依赖哪些公理”和“偷偷加入一个恰好等于目标的 axiom”。
+
+\section{推荐项目结构}
+
+\begin{lstlisting}[language={}]
+lean-randomized-theorem/
+  README.md
+  Problem.md
+  ProofStatus.md
+  lean-toolchain
+  lakefile.toml
+  LeanRandom/
+    Definitions.lean
+    FiniteProbability.lean
+    MainTheorem.lean
+    Tests.lean
+  scripts/
+    enumerate.py
+\end{lstlisting}
+
+\code{Problem.md} 对齐自然语言、数学与 Lean；\code{ProofStatus.md} 分已证明、仅测试、未形式化和外部假设。源码中的 theorem 不承担项目全部叙述。
+
+\section{两周节奏}
+
+第 1--2 天冻结题目和三列表；第 3--4 天完成有限 Python 枚举；第 5--7 天写 Definitions 与结构 lemma；第 8--10 天证明主 theorem；第 11 天生成变体和反例；第 12 天无占位审计；第 13--14 天整理失败轨迹与语义边界。
+
+如果第 7 天仍卡在一般概率库接口，应主动退回有限均匀版本，而不是用 \code{sorry} 保留过大目标。
+
+\begin{protocolbox}
+最低交付：可 \code{lake build} 的固定版本项目、三列表 \code{Problem.md}、无占位核心 theorem、有限枚举脚本、至少一个失败/反例记录，以及明确列出尚未形式化的概率、复杂度或实现层性质。
+\end{protocolbox}
+
+\begin{checkpointbox}
+\begin{enumerate}
+  \item 选择一条第一周可完成的有限 theorem；
+  \item 制作自然语言/数学/Lean 三列表并审查量词；
+  \item 把主 theorem 拆成结构、代数和概率三层 lemma；
+  \item 选择有限枚举或一般概率库路线并说明代价；
+  \item 冻结 statement 后设计 proof search/repair 协议；
+  \item 运行无 \code{sorry}/新增强公理的干净构建审计。
+\end{enumerate}
+\end{checkpointbox}

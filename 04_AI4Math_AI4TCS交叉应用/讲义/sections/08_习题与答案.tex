@@ -1,0 +1,76 @@
+\chapter{综合习题与参考答案}
+
+\section{习题}
+
+\begin{enumerate}[label=\textbf{X\arabic*.}]
+  \item 分别给出一个 AI4Math、AI4TCS 和 TCS4AI 问题，并解释边界。
+  \item 对“语言模型生成更短的排序程序”填写 object、representation、generator、verifier、guarantee、generalization 六字段。
+  \item 某 verifier 只在 200 个随机输入上测试候选。它的 soundness 与 completeness 能否成立？应该怎样准确表述？
+  \item 每轮 verifier 返回 0--999 的整数分数，搜索 100 轮。忽略其他侧信道时，transcript 最多约含多少 bit？为什么这不是泛化保证？
+  \item 解释为什么用 Count-Min 直接 sketch $f-p$ 可能破坏单侧误差证明，并给出两种修复方向。
+  \item 对归一化频率预测，比较 $L_1$、KL 和 heavy-hitter recall；各自在哪种失败上敏感？
+  \item 预测 heavy-hitter exact counter + 完整 backup sketch 为什么容易展示“永不变差”？固定总内存后应怎样公平比较？
+  \item 两个流分片使用不同 heavy set 和不同自适应宽度。说明它们的学习增强 sketch 为什么未必可直接合并。
+  \item 为一个小图遍历规则候选设计五层 verifier，并写出每层返回的失败信息。
+  \item Freivalds 单次错误接受概率至多 $1/2$。要使其不超过 $10^{-6}$，至少独立重复多少次？
+  \item 固定候选在 1000 个独立测试上零失败。用 rule of three 给出约 $95\%$ 失败率上界，并说明不能推出什么。
+  \item 一个搜索器每天查看 hidden 分数并修改候选。为什么这份 hidden 已不再是最终独立测试？怎样修复协议？
+  \item 把“有限事件族 union bound”拆成自然语言、数学式和 Lean 设计，并列出至少四个形式化假设。
+  \item 给出一个 kernel-checked theorem 的证据登记行：claim、evidence、remaining gap。
+  \item 固定尺寸 $8\times8$ 矩阵乘法候选在某 GPU 上更快。写出可以声称和不能声称的结论。
+  \item 从 A/B/C 中选一个项目，写第 0 天契约、三个阶段闸门和 go/revise/stop 条件。
+\end{enumerate}
+
+\section{参考答案与提示}
+
+\paragraph{X1.}
+AI4Math：把自然语言组合恒等式翻译为 Lean 并证明；AI4TCS：搜索一个小型调度启发式并用精确 oracle/hidden tests 验证；TCS4AI：分析一个适应性搜索器从 verifier 反馈中获得多少信息以及何时泛化。真实项目可交叉，但当前研究问题必须标注主要方向。
+
+\paragraph{X2.}
+Object 是排序程序；representation 可为受限 AST/DSL；generator 是语言模型；verifier 先检查所有测试/形式规范的功能正确性，再计算代码长度或操作数；guarantee 若只有有限穷举就只覆盖该范围；generalization 要测试新长度、数据分布、元素类型和等价语法。还需说明“更短”按 token、AST 节点还是机器指令计。
+
+\paragraph{X3.}
+对任意输入性质而言，200 个测试通常不能给 soundness：错误候选可能在未测输入失败。对“通过这 200 个测试”这一较弱性质，verifier 可精确 sound/complete。准确表述是固定候选在指定分布、seed 和预算下经验通过率；若有独立同分布假设，可给统计界，但仍不是 worst-case proof。
+
+\paragraph{X4.}
+每个分数有 1000 种值，信息最多 $\log_2 1000\approx9.97$ bit，100 轮 transcript 至多约 997 bit。实际互信息可能更低或受其他反馈影响。这个上界只约束反馈容量，不自动说明候选分布、搜索算法稳定性或 hidden 数据上的泛化。
+
+\paragraph{X5.}
+Residual $r_i=f_i-p_i$ 可为负，碰撞噪声不再全非负，Count-Min 的“估计永不低于真值”和 Markov 分析失效。可改用 Count Sketch 等支持有符号更新的估计器，或分别 sketch 正/负 residual 并重新推导组合误差；也可限制 prediction 使 residual 非负，但会改变接口。
+
+\paragraph{X6.}
+$L_1$ 衡量总质量偏差，对许多小误差可累积；KL 对真实高概率但预测接近零的 key 极敏感，并有支持集/方向问题；heavy-hitter recall 直接惩罚漏掉大 key，却忽略尾部概率拟合。选择应匹配算法如何使用预测，且主指标应在看结果前冻结。
+
+\paragraph{X7.}
+完整 backup 使用了经典 baseline 的全部内存，再加 exact counters，当然容易不劣。固定总内存时，应把 exact counter、key 标识、预测参数、hash seed 和计数器统一计费，然后缩小 backup 或 baseline 到相同预算；重新比较误差、更新成本和错误预测退化。
+
+\paragraph{X8.}
+经典线性 sketch 合并要求相同维度、哈希和线性状态语义。不同分片若使用不同 heavy set/宽度，状态坐标和 exact/sketch 分工不一致，相加不等于对并流运行同一算法。可冻结全局预测配置，或设计携带可协调 metadata 的合并协议并证明等价性。
+
+\paragraph{X9.}
+接口层检查图格式、返回序列和超时；手工层检查空图、单点、链和断连图；小规模层枚举所有小图并由独立 BFS/DFS oracle 验证；hidden/OOD 层更换图族、规模与重命名；最终层证明访问不变量/覆盖性质并分析 $O(|V|+|E|)$ 是否成立。每层返回可重放输入、预期/实际性质、错误类和 verifier version。
+
+\paragraph{X10.}
+需 $2^{-k}\le10^{-6}$，即 $k\ge\log_2 10^6\approx19.93$，所以至少 20 次独立重复。该计算依赖域上正确实现、错误候选固定和随机向量独立。
+
+\paragraph{X11.}
+约 $95\%$ 上界为 $3/1000=0.003$。不能推出真实失败率为 0，不能推出 worst-case 正确，也不能在候选根据这 1000 个测试反复选择后直接使用固定候选解释。
+
+\paragraph{X12.}
+每天的分数进入了搜索历史，因此搜索器适应了 hidden；它实际是 validation。应冻结当前候选，在从未查询的新 final/OOD 集上一次复验，并为以后限制 hidden 查询次数、反馈精度和里程碑；完整记录已经泄漏的轮次。
+
+\paragraph{X13.}
+自然语言：同一有限均匀空间中有限事件族并集概率不超过概率和。数学式为
+\[
+\Pr[\bigcup_{i\in I}E_i]\le\sum_{i\in I}\Pr[E_i].
+\]
+Lean 设计需选择有限非空样本空间、有限索引类型/Finset、可判定事件、同一概率定义、事件并集表示和有序数值域；若使用一般概率库，还需相应可测性条件。
+
+\paragraph{X14.}
+Claim：固定 toolchain 下 theorem $T$ 可证明。Evidence：公开 commit 上无 \code{sorry}/新增目标公理的 \code{lake build}，并记录 \code{\#print axioms T}。Remaining gap：自然语言 statement 对齐由人工审查；外部 Python 实现、概率模型或复杂度若未进入 $T$，不在证明范围。
+
+\paragraph{X15.}
+可以声称：在指定 GPU、实现、数据类型、batch 和计时协议上，固定 $8\times8$ 候选的实测延迟/吞吐优于 baseline。不能仅据此声称矩阵乘法指数下降、任意尺寸更快、乘法次数理论最优或在其他硬件保持优势。还需正确性、数值稳定性和端到端成本审计。
+
+\paragraph{X16.}
+答案应具体到一个项目。以 A 为例：契约固定 insertion-only、Count-Min baseline、上一窗口 heavy-set 预测、固定总内存、p95 绝对误差和 drift/adversarial miss；闸门为 baseline 对拍、prediction error 生成器完成、错误预测反例已保存；go 要求跨 seed/分布稳定收益且退化达标，revise 表示只在某接口有效，stop 表示简单 baseline 同样好或固定预算无收益。

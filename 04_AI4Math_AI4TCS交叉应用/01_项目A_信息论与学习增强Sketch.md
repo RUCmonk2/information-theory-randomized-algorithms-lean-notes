@@ -1,5 +1,7 @@
 # 项目 A：信息论与学习增强 Sketch
 
+> 完整讲解见 [AI4Math / AI4TCS 交叉应用讲义](讲义/AI4Math_AI4TCS交叉应用讲义.pdf)第 3、6、7 章；本文件保留为两周项目启动清单。
+
 ## 目标
 
 在 Count-Min 或 Count Sketch 上加入一个可控的预测器/side information，研究 prediction error、估计误差、空间和鲁棒性之间的关系。

@@ -1,0 +1,138 @@
+\chapter{环境、Lake 项目与内核检查模型}
+
+\section{Lean 工具链由什么组成}
+
+第一次接触 Lean 时，容易把 VS Code 中的彩色目标窗口当成 Lean 本身。实际上常用工作流至少包含四层：
+\begin{description}
+  \item[elan] 安装并切换 Lean toolchain，作用类似 Rust 的 \code{rustup}；
+  \item[Lean] 解析、展开和检查 Lean 源文件，最终由小型 kernel 验证证明项；
+  \item[Lake] 管理项目、依赖和构建任务；
+  \item[编辑器扩展] 把当前位置的目标、诊断和补全展示出来，但它不是最终可信边界。
+\end{description}
+
+先在终端记录真实版本：
+\begin{lstlisting}[language={}]
+elan --version
+lean --version
+lake --version
+\end{lstlisting}
+同一个项目应固定 \code{lean-toolchain}，复制代码时也要带上 toolchain 与依赖版本。缺少这些信息时，“在他那里能编译”不能推出“在当前环境能编译”。
+
+\section{创建最小 Lake 项目}
+
+在空目录中可以运行：
+\begin{lstlisting}[language={}]
+lake init LeanSelfStudy
+lake build
+\end{lstlisting}
+不同 Lean 版本生成的模板可能略有差别，但应至少识别以下对象：
+\begin{center}
+\begin{tabularx}{0.94\textwidth}{>{\bfseries}lX}
+\toprule
+文件或目录 & 作用 \\
+\midrule
+\code{lean-toolchain} & 固定 Lean 版本；构建复现的第一入口 \\
+\code{lakefile.toml} 或 \code{lakefile.lean} & 声明包、库、可执行程序和依赖 \\
+\code{Main.lean} & 模板中的可执行入口，若项目需要命令行程序 \\
+\code{LeanSelfStudy/} & 自己的库模块；文件路径通常对应模块名 \\
+\code{lake-manifest.json} & Lake 解析后的依赖锁定信息 \\
+\code{.lake/} & 本机下载与构建缓存，不应当作学习成果 \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+引入 mathlib 时，应按 mathlib 当前文档创建项目或添加依赖，再运行 \code{lake update} 和 \code{lake build}。不要手工复制 mathlib 的缓存目录；项目配置和 manifest 才是可审计依赖。
+
+\section{第一个可检查文件}
+
+把下面内容放进项目模块中：
+\begin{lstlisting}
+import Mathlib
+
+#check Nat
+#check Nat.add
+#check Nat.add_comm
+
+def double (n : Nat) : Nat := n + n
+
+#eval double 6
+
+example (n : Nat) : double n = n + n := by
+  rfl
+\end{lstlisting}
+
+\code{\#check} 让 elaborator 告诉我们表达式的类型；\code{\#eval} 对可执行定义求值；\code{example} 声明一个无需命名保存的定理。最后的 \code{rfl} 能成功，是因为展开 \code{double} 后两边定义性相同。
+
+单独检查文件和检查整个项目分别使用：
+\begin{lstlisting}[language={}]
+lake env lean LeanSelfStudy/Basic.lean
+lake build
+\end{lstlisting}
+前者适合缩小错误，后者负责确认模块依赖和整个项目都一致。
+
+\section{从源码到 kernel 的路径}
+
+Lean 不直接把你键入的 tactic 字符串交给 kernel。可以用下图理解处理链：
+\begin{center}
+\begin{tikzpicture}[
+  node distance=7mm,
+  box/.style={draw,rounded corners=1mm,align=center,minimum width=3.2cm,minimum height=8mm},
+  arr/.style={-{Stealth[length=2mm]},thick}
+]
+\node[box] (src) {源码与 tactic};
+\node[box,below=of src] (elab) {parser / elaborator\\补全隐式参数与实例};
+\node[box,below=of elab] (term) {核心表达式与证明项};
+\node[box,below=of term] (kernel) {kernel 类型检查};
+\node[box,below=of kernel] (ok) {接受或拒绝};
+\draw[arr] (src)--(elab);
+\draw[arr] (elab)--(term);
+\draw[arr] (term)--(kernel);
+\draw[arr] (kernel)--(ok);
+\end{tikzpicture}
+\end{center}
+
+Tactic、搜索器甚至语言模型都可以帮助构造证明项；最终 kernel 只检查这个项是否具有声明的类型。由此得到两个同时成立的判断：
+\begin{enumerate}
+  \item 自动化很强不必然扩大可信计算基；只要最终产生普通证明项，kernel 仍会复查；
+  \item kernel 接受只保证“形式语句被证明”，不保证自然语言题目被正确翻译，也不保证定理有研究意义。
+\end{enumerate}
+
+\begin{aibox}
+AI proof agent 可以生成 statement、tactic 或完整 proof term，Lean 负责形式正确性。人类仍需检查 statement fidelity、依赖中是否引入过强公理、问题是否被偷换，以及算法复杂度等未进入命题的性质。
+\end{aibox}
+
+\section{错误信息先按层分类}
+
+面对失败时，先问它发生在哪一层：
+\begin{description}
+  \item[解析错误] 括号、缩进、关键字或 Unicode/ASCII 记号不合法；
+  \item[名称解析错误] 没有导入模块、命名空间不对或 API 已改名；
+  \item[elaboration 错误] 隐式参数、类型类实例或预期类型无法确定；
+  \item[证明目标未关闭] tactic 执行过，但仍有 goals；
+  \item[构建错误] 单文件似乎可用，但模块名、依赖或项目配置不一致。
+\end{description}
+
+\begin{warningbox}
+重启编辑器、删除全部缓存偶尔能解决环境问题，却不能替代错误分类。若一个 10 行例子仍然失败，应先保存完整错误和 proof state，再最小化代码；否则一次“偶然变绿”不会留下可复用理解。
+\end{warningbox}
+
+\section{最小可复现环境记录}
+
+一个可以交给别人复查的 Lean 结果至少应包含：
+\begin{enumerate}
+  \item Lean 与 mathlib 的固定版本；
+  \item Lake 配置、manifest 和所有必要源文件；
+  \item 从干净 checkout 开始的构建命令；
+  \item 定理是否使用 \code{axiom}、\code{sorry} 或非标准代码生成路径；
+  \item 失败时的最小例子和完整错误，而不是只有截图。
+\end{enumerate}
+
+\begin{checkpointbox}
+\begin{enumerate}
+  \item 解释 elan、Lean、Lake、编辑器扩展各自负责什么；
+  \item 创建一个固定 toolchain 的项目，并用终端完成一次 \code{lake build}；
+  \item 说明 tactic、elaborator、proof term 与 kernel 的关系；
+  \item 把一次失败归类为解析、名称、elaboration、证明或构建错误；
+  \item 说清 Lean kernel 接受一条定理能保证什么、不能保证什么。
+\end{enumerate}
+\end{checkpointbox}

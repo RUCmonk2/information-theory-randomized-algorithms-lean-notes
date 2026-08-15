@@ -1,0 +1,139 @@
+\chapter{表达式、定义、函数与计算}
+
+\section{每个表达式都有类型}
+
+Lean 的核心判断写成
+\[
+\Gamma \vdash t : T,
+\]
+表示在局部环境 $\Gamma$ 中，项 $t$ 具有类型 $T$。例如自然数 \code{3} 的类型是 \code{Nat}，函数 \code{Nat.succ} 的类型是 \code{Nat -> Nat}，而一个等式证明也是某个命题类型的项。
+
+\begin{lstlisting}
+#check 3
+#check Nat.succ
+#check fun n : Nat => n + 1
+#check Type
+#check Prop
+\end{lstlisting}
+
+类型本身也需要类型。Lean 使用 universe 层级避免“所有类型组成的类型包含自身”带来的悖论。入门时可以先记住：\code{Nat : Type}，而 \code{Type : Type 1}；多态定义经常让 universe 参数由 elaborator 自动补全。
+
+\section{函数类型与函数定义}
+
+若输入类型为 $A$、输出类型为 $B$，函数类型写作 $A\to B$。匿名函数和命名定义分别写作：
+\begin{lstlisting}
+#check fun n : Nat => n * n
+
+def square (n : Nat) : Nat := n * n
+
+def compose (f : B -> C) (g : A -> B) : A -> C :=
+  fun x => f (g x)
+\end{lstlisting}
+最后一个定义中的 \code{A B C} 需要预先作为类型变量声明：
+\begin{lstlisting}
+universe u v w
+variable {A : Type u} {B : Type v} {C : Type w}
+\end{lstlisting}
+
+函数默认柯里化。\code{Nat -> Nat -> Nat} 解析为 \code{Nat -> (Nat -> Nat)}：先接受一个自然数，再返回一个接受自然数的函数。因此多参数应用写作 \code{f x y}，而不是必须构造元组。
+
+\section{显式参数、隐式参数与命名参数}
+
+圆括号参数必须显式提供，花括号参数通常由上下文推断：
+\begin{lstlisting}
+def identity {A : Type} (x : A) : A := x
+
+#check identity 5
+#check identity "lean"
+#check @identity
+\end{lstlisting}
+\code{@identity} 要求显示包括隐式参数在内的完整函数。诊断类型推断时，还可以用命名参数指定：\code{identity (A := Nat) 5}。
+
+\begin{warningbox}
+“参数没有写出来”不等于“参数不存在”。mathlib 定理常含 universe、类型、实例和假设等多层隐式参数。应用失败时先 \code{\#check} 定理，再必要时查看 \code{@theoremName} 或打开更详细的 pretty printer。
+\end{warningbox}
+
+\section{局部定义、命名空间与模块}
+
+\code{let} 创建局部名称；\code{namespace} 避免全局命名冲突：
+\begin{lstlisting}
+namespace SelfStudy
+
+def twice (f : Nat -> Nat) (x : Nat) : Nat :=
+  let y := f x
+  f y
+
+#eval twice (fun n => n + 1) 10
+
+end SelfStudy
+\end{lstlisting}
+跨文件使用定义时，需要让文件路径、模块名与 \code{import} 对应。\code{open} 只改变名称访问方式，并不会导入尚未加载的模块。
+
+\section{模式匹配与递归}
+
+代数数据类型通过构造子产生值，模式匹配负责拆解值：
+\begin{lstlisting}
+def isZero : Nat -> Bool
+  | 0 => true
+  | _ + 1 => false
+
+def sum : List Nat -> Nat
+  | [] => 0
+  | x :: xs => x + sum xs
+
+#eval sum [2, 3, 5]
+\end{lstlisting}
+\code{sum} 的递归调用作用于严格更小的尾列表，所以 Lean 的终止检查器可以接受。逻辑一致性要求一般递归不能无条件地产生任意类型的值；若递归不是结构递减，需要提供终止度量与证明。
+
+\begin{intuitionbox}
+函数式定义同时承担三种角色：它是可执行程序，是数学对象，也是后续证明展开的重写规则。定义接口若写得清楚，计算和证明会共享同一份结构；定义若混入过多实现细节，后续 theorem 也会被这些细节绑住。
+\end{intuitionbox}
+
+\section{归约与定义性相等}
+
+Lean 中两类“相等”需要分开：
+\begin{description}
+  \item[定义性相等] 通过展开定义、函数应用归约或模式匹配计算后相同，kernel 可直接识别；
+  \item[命题相等] 类型为 \code{Eq a b} 的命题，需要一个证明项。
+\end{description}
+
+例如：
+\begin{lstlisting}
+def addOne (n : Nat) := n + 1
+
+example : addOne 2 = 3 := by
+  rfl
+
+example (n : Nat) : n + 0 = n := by
+  simpa using Nat.add_zero n
+\end{lstlisting}
+第一条可通过计算完成；第二条对变量 $n$ 并不是简单把两边算成数字，需要自然数加法的定理（该定理本身由归纳证明）。
+
+\section{可执行不等于已证明}
+
+\code{\#eval} 能展示某个输入的计算结果，但它没有证明对所有输入成立。例如运行排序函数得到有序列表，只验证了一个样例。一般性正确性需要分别说明：输出有序、输出是输入的排列，以及函数终止。
+
+\begin{aibox}
+AI4TCS 中模型可以生成候选程序，\code{\#eval}、单元测试和随机测试用于快速筛选；Lean theorem 用于证明明确写入类型的性质。测试与证明共享定义，却提供不同等级的证据，不能互相冒充。
+\end{aibox}
+
+\section{定义设计检查表}
+
+在开始证明前，先检查：
+\begin{enumerate}
+  \item 输入、输出和错误情况是否在类型中表达清楚；
+  \item 使用 \code{Nat}、\code{Int}、\code{Fin n} 还是一般类型是否符合问题；
+  \item 无效状态能否被构造，若能，后续需要什么不变量；
+  \item 定义是面向规范还是面向高性能实现，两者是否需要分层；
+  \item 递归为何终止，模式是否覆盖所有构造子。
+\end{enumerate}
+
+\begin{checkpointbox}
+\begin{enumerate}
+  \item 用 \code{\#check} 解释五个表达式的完整类型；
+  \item 写出一个带隐式类型参数的多态函数，并用 \code{@} 查看完整参数；
+  \item 定义列表乘积或最大值的安全版本，说明空列表怎样处理；
+  \item 区分定义性相等与需要证明的命题相等；
+  \item 解释为什么 \code{\#eval} 的十个样例不能代替全称定理。
+\end{enumerate}
+\end{checkpointbox}

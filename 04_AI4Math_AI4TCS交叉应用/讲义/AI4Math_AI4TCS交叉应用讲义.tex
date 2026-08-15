@@ -1,0 +1,173 @@
+\documentclass[UTF8,zihao=-4,oneside,fontset=fandol]{ctexrep}
+
+\usepackage[a4paper,margin=2.35cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools,bm}
+\usepackage{booktabs,tabularx,array,multirow}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{setspace}
+\usepackage{listings}
+\usepackage{tikz}
+\usepackage[most]{tcolorbox}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,calc,fit}
+
+\definecolor{DeepBlue}{HTML}{1F4E79}
+\definecolor{DeepGreen}{HTML}{2E6B4F}
+\definecolor{WarmRed}{HTML}{A33A32}
+\definecolor{SoftGray}{HTML}{F4F5F6}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=DeepBlue,
+  urlcolor=DeepBlue,
+  citecolor=DeepGreen,
+  pdftitle={AI4Math 与 AI4TCS 交叉应用讲义},
+  pdfauthor={RUCmonk2}
+}
+
+\setstretch{1.22}
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0.25em}
+\setlist{itemsep=0.25em,topsep=0.35em}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{AI4Math 与 AI4TCS 交叉应用讲义}
+\fancyhead[R]{\leftmark}
+\fancyfoot[C]{\thepage}
+\setlength{\headheight}{14pt}
+
+\newtheorem{definition}{定义}[chapter]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{proposition}[definition]{命题}
+\newtheorem{lemma}[definition]{引理}
+\newtheorem{corollary}[definition]{推论}
+\theoremstyle{remark}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{说明}
+
+\newtcolorbox{intuitionbox}{
+  colback=DeepBlue!4,colframe=DeepBlue!70!black,
+  title=研究直觉,breakable,boxrule=0.7pt,arc=1mm
+}
+\newtcolorbox{warningbox}{
+  colback=WarmRed!4,colframe=WarmRed!75!black,
+  title=结论边界,breakable,boxrule=0.7pt,arc=1mm
+}
+\newtcolorbox{protocolbox}{
+  colback=DeepGreen!4,colframe=DeepGreen!75!black,
+  title=可执行协议,breakable,boxrule=0.7pt,arc=1mm
+}
+\newtcolorbox{checkpointbox}{
+  colback=SoftGray,colframe=black!50,
+  title=本章验收,breakable,boxrule=0.6pt,arc=1mm
+}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  columns=fullflexible,
+  frame=single,
+  rulecolor=\color{black!25},
+  backgroundcolor=\color{black!2},
+  xleftmargin=0.6em,
+  xrightmargin=0.6em,
+  showstringspaces=false,
+  language=Python
+}
+
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\operatorname{Var}}
+\newcommand{\Prb}{\mathbb{P}}
+\newcommand{\KL}{D_{\mathrm{KL}}}
+\newcommand{\poly}{\operatorname{poly}}
+\newcommand{\code}[1]{\texttt{#1}}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+
+\title{\heiti AI4Math 与 AI4TCS 交叉应用讲义\\[0.5em]
+\Large 从 generator--verifier 闭环到可审计研究项目}
+\author{RUCmonk2}
+\date{2026 年 8 月}
+
+\begin{document}
+
+\hypersetup{pageanchor=false}
+\maketitle
+\hypersetup{pageanchor=true}
+
+\chapter*{如何使用这本讲义}
+\addcontentsline{toc}{chapter}{如何使用这本讲义}
+
+本讲义用于把信息论、随机算法与 Lean 基础转成可执行的 AI4Math / AI4TCS 研究能力。它不以罗列热门模型为目标，而是反复追问六件事：研究对象是什么，怎样表示，谁生成候选，谁验证，能够给出什么保证，以及结果怎样跨实例或规模泛化。
+
+阅读每章时维护一张证据登记表：
+\begin{center}
+\begin{tabularx}{0.94\textwidth}{>{\bfseries}lX}
+\toprule
+字段 & 必须写清的内容 \\
+\midrule
+Claim & 想支持的最小、可证伪结论 \\
+Object / representation & 搜索的对象及其编码是否保留结构 \\
+Generator & 人、枚举、启发式、语言模型或学习器 \\
+Verifier & 精确检查、形式证明、随机测试或代理指标 \\
+Guarantee & kernel-checked、概率保证、有限枚举或仅经验结果 \\
+Generalization & 新实例、新分布、新规模和最坏情况分别如何 \\
+Audit artifact & 代码、配置、反例、证明、日志和结果表 \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+正文把三个建议项目扩写成完整方法，但仍遵守“只选一个两周闭环”的范围约束。完成一个有失败分析的小项目，比同时搭三个空框架更接近真实科研。
+
+\tableofcontents
+\clearpage
+
+\input{sections/01_领域边界_任务地图与证据等级.tex}
+\input{sections/02_Generator_Verifier_Search闭环.tex}
+\input{sections/03_项目A_学习增强Sketch.tex}
+\input{sections/04_项目B_随机算法候选验证器.tex}
+\input{sections/05_项目C_Lean自动形式化与证明.tex}
+\input{sections/06_实验设计_反例与适应性过拟合.tex}
+\input{sections/07_两周项目执行与可复现交付.tex}
+\input{sections/08_习题与答案.tex}
+
+\begin{thebibliography}{9}
+\bibitem{alphatensor}
+Alhussein Fawzi et al.
+\newblock Discovering faster matrix multiplication algorithms with reinforcement learning.
+\newblock \emph{Nature}, 2022.
+
+\bibitem{funsearch}
+Bernardino Romera-Paredes et al.
+\newblock Mathematical discoveries from program search with large language models.
+\newblock \emph{Nature}, 2024.
+
+\bibitem{alphageometry}
+Trieu H. Trinh et al.
+\newblock Solving olympiad geometry without human demonstrations.
+\newblock \emph{Nature}, 2024.
+
+\bibitem{leandojo}
+Kaiyu Yang et al.
+\newblock LeanDojo: Theorem proving with retrieval-augmented language models.
+\newblock \emph{NeurIPS}, 2023.
+
+\bibitem{minif2f}
+Kunhao Zheng et al.
+\newblock miniF2F: a cross-system benchmark for formal Olympiad-level mathematics.
+\newblock \emph{ICLR}, 2022.
+
+\bibitem{predictions}
+Michael Mitzenmacher and Sergei Vassilvitskii.
+\newblock Algorithms with predictions.
+\newblock In \emph{Beyond the Worst-Case Analysis of Algorithms}, 2020.
+
+\bibitem{cormode-yi}
+Graham Cormode and Ke Yi.
+\newblock \emph{Small Summaries for Big Data}.
+\newblock Cambridge University Press, 2020.
+\end{thebibliography}
+
+\end{document}

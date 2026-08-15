@@ -1,0 +1,145 @@
+\chapter{归纳类型、递归与归纳证明}
+
+\section{归纳类型由构造子生成}
+
+自然数、列表、树和语法树都可以看成“由有限组构造子生成的最小类型”。例如一个二叉树：
+\begin{lstlisting}
+inductive BinTree (A : Type) where
+  | empty : BinTree A
+  | node : BinTree A -> A -> BinTree A -> BinTree A
+deriving Repr
+\end{lstlisting}
+这个声明同时提供：构造值的方法、按构造子分类讨论的原则，以及递归/归纳时可使用的 eliminator。任何 \code{BinTree A} 都由 \code{empty} 或 \code{node} 有限构造而来。
+
+\section{模式匹配定义函数}
+
+\begin{lstlisting}
+namespace BinTree
+
+def size : BinTree A -> Nat
+  | .empty => 0
+  | .node left _ right => size left + 1 + size right
+
+def mirror : BinTree A -> BinTree A
+  | .empty => .empty
+  | .node left x right => .node (mirror right) x (mirror left)
+
+end BinTree
+\end{lstlisting}
+每个分支对应一个构造子。Lean 检查模式是否覆盖所有情况，并检查递归调用是否作用于结构上更小的子项。
+
+\begin{intuitionbox}
+归纳类型给出“数据能怎样产生”，递归定义给出“怎样消费数据得到一个值”，归纳证明给出“怎样对所有可能的产生方式证明性质”。三者共享同一个构造子结构。
+\end{intuitionbox}
+
+\section{自然数归纳}
+
+要证明 $P(n)$ 对所有 $n:\Nat$ 成立，需要证明 $P(0)$，以及从 $P(n)$ 推出 $P(n+1)$。例如：
+\begin{lstlisting}
+theorem add_zero_self (n : Nat) : n + 0 = n := by
+  induction n with
+  | zero => rfl
+  | succ n ih =>
+      simp [Nat.add, ih]
+\end{lstlisting}
+这里 \code{ih} 的类型是前一自然数上的归纳假设。实际项目通常直接使用 mathlib 已有的 \code{Nat.add\_zero}；手工证明的目的在于看清归纳原则，而不是重复造库。
+
+\section{列表归纳}
+
+列表只有空表与 \code{cons} 两种构造：
+\begin{lstlisting}
+theorem append_nil_self (xs : List A) : xs ++ [] = xs := by
+  induction xs with
+  | nil => rfl
+  | cons x xs ih =>
+      simp [ih]
+\end{lstlisting}
+在 \code{cons} 分支，归纳假设只覆盖尾列表 \code{xs}。若结论涉及额外参数，参数是否在归纳前引入，会影响归纳假设的强弱。
+
+\section{树归纳与局部假设}
+
+二叉树节点有两个递归子树，所以节点分支获得两个归纳假设：
+\begin{lstlisting}
+namespace BinTree
+
+theorem size_mirror (t : BinTree A) :
+    size (mirror t) = size t := by
+  induction t with
+  | empty => rfl
+  | node left x right ihLeft ihRight =>
+      simp [mirror, size, ihLeft, ihRight,
+        Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+
+end BinTree
+\end{lstlisting}
+证明的数学内容是：镜像交换左右子树，但加法可交换，因此节点总数不变。\code{simp} 负责展开定义并使用归纳假设；交换律和结合律负责规范化加法顺序。
+
+\section{先找不变量，再做归纳}
+
+算法证明中的归纳对象不一定是一个数字，也可能是：
+\begin{itemize}
+  \item 输入列表或语法树；
+  \item 已处理的流前缀；
+  \item 状态转换的步数；
+  \item 执行关系的推导树；
+  \item 递归调用的结构或终止度量。
+\end{itemize}
+
+假设顺序处理输入 $x_1,\ldots,x_n$，状态满足
+\[
+\operatorname{Inv}(s_i,x_1,\ldots,x_i).
+\]
+典型证明由初始化与保持性组成：
+\[
+\operatorname{Inv}(s_0,[]) ,\qquad
+\operatorname{Inv}(s_i,p_i)\Rightarrow
+\operatorname{Inv}(\operatorname{step}(s_i,x_{i+1}),p_{i+1}).
+\]
+然后对前缀或步数归纳，得到所有执行阶段的不变量。
+
+\section{归纳假设太弱怎么办}
+
+常见症状是：进入归纳分支后，\code{ih} 只对某个固定参数成立，而目标需要它对变化后的参数成立。处理顺序应当是：
+\begin{enumerate}
+  \item 在纸上写出真正需要的加强命题；
+  \item 决定哪些参数应在归纳前保持一般；
+  \item 必要时用 \code{generalizing} 或先 \code{revert} 参数；
+  \item 只有命题强度正确后，才继续尝试自动化。
+\end{enumerate}
+
+例如证明带累加器的尾递归函数正确时，通常应证明“对任意初始累加器”的更强命题，而不是只证明累加器为零的特例。
+
+\begin{warningbox}
+反复尝试 \code{simp}、\code{aesop} 不能修复错误的归纳命题。若归纳假设在数学上不足，搜索更多 tactic 只会掩盖真正问题：需要加强 theorem statement 或改变归纳对象。
+\end{warningbox}
+
+\section{良基递归与终止证明}
+
+结构递归之外，欧几里得算法、快速排序或图搜索常按数值度量下降。Lean 允许为递归提供终止依据，例如列表长度、区间大小或一个良基关系。证明需要明确每次调用的度量严格减小。
+
+对学习项目，建议先把函数拆成：
+\begin{enumerate}
+  \item 纯粹的一步转换；
+  \item 显式 fuel 的有限执行器；
+  \item 关于 fuel 或度量的单调/终止 lemma；
+  \item 最终的部分正确性与终止性结论。
+\end{enumerate}
+这比一开始把复杂递归、状态和正确性揉进一个定义更容易调试。
+
+\section{归纳证明的审计问题}
+
+阅读任何归纳证明时都问：归纳对象是什么？构造子是否覆盖完全？每个归纳假设对应哪一个递归子对象？命题是否为了归纳而加强？证明只得到部分正确性，还是也包含终止性？
+
+\begin{aibox}
+语言模型生成归纳证明时，最常见的失败并不是不会写 tactic，而是选错归纳变量或忘记泛化参数。一个 verifier 应记录失败 proof state 和归纳假设形状，让搜索器能够修改 statement/induction schema，而不只是继续采样 tactic。
+\end{aibox}
+
+\begin{checkpointbox}
+\begin{enumerate}
+  \item 自定义一个带叶子值的树，并写 \code{size} 与 \code{map}；
+  \item 对列表证明一个结构归纳定理，指出 base 与 step；
+  \item 证明树镜像两次得到原树，标出两个归纳假设；
+  \item 举出一个需要加强归纳命题的累加器例子；
+  \item 区分结构递归、良基递归、部分正确性和终止性。
+\end{enumerate}
+\end{checkpointbox}

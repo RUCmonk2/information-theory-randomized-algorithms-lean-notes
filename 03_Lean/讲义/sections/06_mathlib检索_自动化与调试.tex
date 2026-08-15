@@ -1,0 +1,151 @@
+\chapter{mathlib 检索、自动化与证明调试}
+
+\section{先读目标，再搜名字}
+
+mathlib 很大，靠猜定理名只能偶尔成功。稳定流程是：
+\begin{enumerate}
+  \item 读当前 local context 与 target；
+  \item 确认对象的具体类型、命名空间和 coercion；
+  \item 用 \code{\#check}、文档和源代码找候选定理；
+  \item 在最小例子中测试候选的参数方向；
+  \item 最后才把它接回原证明。
+\end{enumerate}
+
+\begin{lstlisting}
+#check Nat.add_comm
+#check Nat.succ_le_succ
+#check List.reverse_reverse
+#print Nat.add_comm
+\end{lstlisting}
+\code{\#check} 看接口，\code{\#print} 看声明展开和依赖。阅读库代码时优先寻找同一命名空间中相邻定理，因为命名通常体现对象与操作。
+
+\section{目标形状比自然语言关键词更可靠}
+
+自然语言说“单调”，Lean 目标可能是函数单调、严格单调、集合包含或序同态；说“有限”，可能对应 \code{Finset}、\code{Fintype}、\code{Set.Finite} 或有限维空间。先确定形式对象，搜索才不会跨错抽象层。
+
+例如看到
+\[
+a+1\le b+1
+\]
+应先识别它是自然数序上的 successor 单调，而不是搜索任何含“加法不等式”的定理。
+
+\section{建议型搜索 tactic}
+
+mathlib 提供能建议候选脚本的工具：
+\begin{center}
+\begin{tabularx}{0.94\textwidth}{>{\ttfamily}lX}
+\toprule
+\normalfont 工具 & 用途 \\
+\midrule
+exact? & 搜索可直接匹配当前目标的项 \\
+apply? & 搜索应用后能产生可处理子目标的定理 \\
+rw? & 建议一条可能推进目标的重写 \\
+simp? & 展示建议的简化规则集合 \\
+aesop? & 对构造子、假设和安全规则进行结构化搜索 \\
+\#check & 确认候选定理的完整类型 \\
+\#print & 查看定义或定理的展开信息 \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+问号版本的价值在于返回一段可读建议。把它改写成稳定、较小的显式脚本后，应重新读懂每条依赖；不要长期把宽泛搜索当作唯一证明说明。
+
+\section{常见领域自动化}
+
+不同 tactic 解决不同理论：
+\begin{description}
+  \item[\code{norm\_num}] 具体数字、半环/环中的数值归约；
+  \item[\code{ring} / \code{ring\_nf}] 交换半环或环中的多项式恒等式；
+  \item[\code{linarith}] 由线性等式与不等式组合推出目标；
+  \item[\code{nlinarith}] 包含有限非线性多项式关系的算术推理；
+  \item[\code{omega}] Presburger 算术，尤其自然数和整数的线性关系；
+  \item[\code{decide}] 对有可判定实例且可计算的封闭命题求证；
+  \item[\code{native\_decide}] 借助更高效计算检查可判定命题，使用边界需按项目规范记录。
+\end{description}
+
+\begin{lstlisting}
+example : (17 : Nat) < 23 := by
+  norm_num
+
+example (a b : Int) (h1 : a <= b) : a + 3 <= b + 3 := by
+  omega
+
+example (x y : Int) : (x + y)^2 = x^2 + 2*x*y + y^2 := by
+  ring
+\end{lstlisting}
+自动化失败时先检查问题是否属于它支持的理论。例如 \code{linarith} 不负责列表归纳，\code{ring} 不知道任意非环函数的语义。
+
+\section{控制 simp 的作用域}
+
+\code{simp} 依赖一个不断扩展的规则集。学习与稳定证明中常用：
+\begin{lstlisting}
+simp [myDefinition]
+simp only [List.length_cons, Nat.succ_le_succ_iff]
+simpa [myDefinition] using h
+\end{lstlisting}
+\code{simp only} 让依赖更明确，但可能冗长；普通 \code{simp} 更易维护，但受全局 simp 集变化影响。关键证明可用 \code{simp?} 查看实际规则，再决定保留哪种粒度。
+
+不要随意把双向都可能使用的定理标记为 simp，否则可能造成循环、性能下降或不可预测的规范形。理想 simp lemma 把表达式推向明确的正常形。
+
+\section{类型不匹配的诊断}
+
+“看起来一样”却无法应用，常见原因包括：
+\begin{itemize}
+  \item \code{Nat} 与 \code{Int} 之间存在 coercion；
+  \item 一个对象是 \code{List A}，另一个是 \code{Finset A}；
+  \item 隐式 universe 或类型参数不同；
+  \item 目标经过 reducible definition 展开后才匹配；
+  \item 定理需要 typeclass 实例，但当前没有或不唯一；
+  \item 等式方向、函数参数顺序或命名空间不对。
+\end{itemize}
+
+可临时使用更详细打印：
+\begin{lstlisting}
+set_option pp.all true in
+#check Nat.add_comm
+\end{lstlisting}
+详细输出很嘈杂，只用于定位隐式结构；问题解决后应恢复可读形式。
+
+\section{最小失败例子}
+
+可靠调试流程如下：
+\begin{center}
+\begin{tikzpicture}[
+  node distance=5mm,
+  box/.style={draw,rounded corners=1mm,align=center,minimum width=5.6cm,minimum height=7mm},
+  arr/.style={-{Stealth[length=2mm]},thick}
+]
+\node[box] (a) {复制失败 theorem 到独立文件};
+\node[box,below=of a] (b) {删除无关定义与 imports};
+\node[box,below=of b] (c) {固定一个 proof state};
+\node[box,below=of c] (d) {检查 statement、类型和候选 lemma};
+\node[box,below=of d] (e) {手写一小步，再引入自动化};
+\node[box,below=of e] (f) {回填原文件并运行 lake build};
+\draw[arr] (a)--(b); \draw[arr] (b)--(c); \draw[arr] (c)--(d);
+\draw[arr] (d)--(e); \draw[arr] (e)--(f);
+\end{tikzpicture}
+\end{center}
+
+记录至少包括：完整错误、当前目标、上下文、尝试过的定理及其 \code{\#check} 输出、最终原因分类。这样的失败轨迹以后可以成为检索数据或 AI proof repair 的训练/评测样本。
+
+\section{不要用过宽 import 掩盖依赖}
+
+\code{import Mathlib} 很适合入门和探索；稳定模块可逐步缩小 imports，以明确依赖和改善构建性能。但过早手工优化 imports 会打断学习，合理顺序是：先让 theorem 在固定版本编译，再用工具或构建错误识别真实依赖。
+
+\begin{warningbox}
+禁止用 \code{sorry}、额外 \code{axiom} 或把目标改弱来伪装修复。学习时可以暂时插入 \code{sorry} 隔离后续错误，但提交前必须在状态记录中显式统计，并区分“文件可编译”和“证明无占位”。
+\end{warningbox}
+
+\begin{aibox}
+一个有价值的 proof-repair benchmark 不应只记录最终成功脚本，还应保存 Lean/toolchain 版本、原始错误、proof state、允许的依赖和语义不变约束。否则模型可能通过修改 statement 或引入强公理获得虚假成功。
+\end{aibox}
+
+\begin{checkpointbox}
+\begin{enumerate}
+  \item 从目标类型出发，在 mathlib 文档中找到一个所需定理；
+  \item 分别用 \code{norm\_num}、\code{omega} 和 \code{ring} 解决适合它们的问题；
+  \item 用 \code{simp?} 查看建议，并改写成一段你能解释的脚本；
+  \item 把一个失败 theorem 缩成 20 行以内的最小例子；
+  \item 说明 \code{sorry}、\code{axiom}、测试通过和 kernel-checked theorem 的证据差别。
+\end{enumerate}
+\end{checkpointbox}

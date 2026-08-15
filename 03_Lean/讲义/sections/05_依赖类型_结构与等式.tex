@@ -1,0 +1,136 @@
+\chapter{依赖类型、结构、子类型与等式}
+
+\section{返回类型可以依赖输入}
+
+普通函数 $A\to B$ 的返回类型固定为 $B$；依赖函数的类型写作
+\[
+(x:A)\to B(x),
+\]
+返回类型会随输入 $x$ 改变。Lean 的全称量词本身就是依赖函数类型。
+
+有限索引是最实用的例子之一：\code{Fin n} 表示小于 $n$ 的自然数。列表安全索引可以要求一个随列表长度变化的证明：
+\begin{lstlisting}
+def safeGet (xs : List A) (i : Fin xs.length) : A :=
+  xs.get i
+\end{lstlisting}
+调用者不能提供越界的 \code{i}，因此返回类型不需要 \code{Option A}。代价是程序变换列表长度后，相关索引也可能需要 transport。
+
+\section{无效状态不可表示，还是允许后证明}
+
+建模有两种基本路线：
+\begin{description}
+  \item[精确类型] 把长度、边界或合法性编码进类型，使无效状态不可构造；
+  \item[普通数据加不变量] 使用简单结构表示状态，再单独定义 \code{Inv s : Prop} 并证明转换保持它。
+\end{description}
+前者让部分错误在类型检查阶段消失，后者通常更容易编程、重写和对接现有实现。选择标准不是“依赖类型越多越高级”，而是证明成本与接口收益。
+
+\section{structure：命名字段的乘积类型}
+
+\begin{lstlisting}
+structure StreamState where
+  seen : Nat
+  kept : List Nat
+deriving Repr
+
+def StreamState.push (s : StreamState) (x : Nat) : StreamState :=
+  { seen := s.seen + 1, kept := x :: s.kept }
+
+def StreamState.Inv (s : StreamState) : Prop :=
+  s.kept.length <= s.seen
+\end{lstlisting}
+结构投影 \code{s.seen} 和 \code{s.kept} 是普通函数。更新语法产生新值，不会原地修改旧状态；这使状态转换适合直接写成数学函数。
+
+\section{一个保持不变量的完整小定理}
+
+\begin{lstlisting}
+theorem StreamState.push_preserves
+    (s : StreamState) (x : Nat)
+    (h : StreamState.Inv s) :
+    StreamState.Inv (s.push x) := by
+  simpa [StreamState.Inv, StreamState.push] using
+    Nat.succ_le_succ h
+\end{lstlisting}
+展开后，目标是
+\[
+\operatorname{length}(x::s.\mathrm{kept})
+\le s.\mathrm{seen}+1,
+\]
+即从 $\operatorname{length}(s.\mathrm{kept})\le s.\mathrm{seen}$ 两边同时加一。这个例子展示了算法形式化的基本结构：状态、转换、不变量、保持性。
+
+\section{Subtype：值与性质打包}
+
+子类型
+\[
+\{x:A\mid P(x)\}
+\]
+包含一个值和它满足 $P$ 的证明。例如：
+\begin{lstlisting}
+def PositiveNat := {n : Nat // 0 < n}
+
+def onePositive : PositiveNat :=
+  Subtype.mk 1 (by decide)
+
+#check onePositive.val
+#check onePositive.property
+\end{lstlisting}
+使用 subtype 时，值层计算常可忽略证明字段，但等式和转换有时需要处理 coercion。若大量时间都花在搬运证明而不是目标性质上，应重新评估接口。
+
+\section{Sigma 类型与存在命题}
+
+依赖对 \code{Sigma B} 保存一个索引 $a:A$ 和一个类型为 $B(a)$ 的数据。它位于 \code{Type}，通常用于程序数据；\code{Exists} 位于 \code{Prop}，主要表达逻辑存在，证明在计算提取中的行为不同。
+
+可以粗略记成：
+\[
+\Sigma_{a:A} B(a) \quad\text{保存可计算数据},\qquad
+\exists a:A,\ P(a) \quad\text{声明命题成立}.
+\]
+实际使用时还要检查 universe、proof irrelevance 与是否需要从证明中提取 witness。
+
+\section{等式与 dependent transport}
+
+若 $h:a=b$，普通重写把关于 $a$ 的表达式替换为关于 $b$ 的表达式。依赖类型中，$B(a)$ 与 $B(b)$ 可能是表面不同的类型，需要沿 $h$ 搬运数据。这是 \code{Eq.rec}、\code{cast}、\code{subst} 等机制背后的问题。
+
+\begin{lstlisting}
+example (a b : Nat) (h : a = b) (P : Nat -> Prop)
+    (ha : P a) : P b := by
+  cases h
+  exact ha
+\end{lstlisting}
+对 $h$ 做 cases 后只剩反身情形 $a=a$，目标退化为已有的 \code{ha}。
+
+\begin{warningbox}
+数学上“长度相等”不代表 Lean 会自动把 \code{Fin xs.length} 当成 \code{Fin ys.length}。依赖索引属于类型的一部分。先寻找能避免 transport 的高层 lemma；只有确实需要时再显式搬运。
+\end{warningbox}
+
+\section{Typeclass：由类型驱动的接口搜索}
+
+Typeclass 把操作和定律接口化，实例参数用方括号表示：
+\begin{lstlisting}
+class HasCost (A : Type) where
+  cost : A -> Nat
+
+def totalCost [HasCost A] (xs : List A) : Nat :=
+  (xs.map HasCost.cost).sum
+\end{lstlisting}
+当调用 \code{totalCost} 时，elaborator 需要找到 \code{HasCost A} 实例。代数结构、序、可判定命题、有限类型等 mathlib 接口大量依赖这种搜索。
+
+实例找不到时，应检查：目标类型是否真的是预期类型、实例所在模块是否已导入、是否存在局部歧义、参数有没有被 coercion 改变。不要把所有问题都归因于“mathlib 没这个定理”。
+
+\section{可判定性与计算}
+
+要在程序中对命题做 \code{if} 分支，Lean 需要 \code{Decidable p}，即能计算判断 $p$ 真假的接口。有限等式、自然数序关系等通常已有实例。\code{by decide} 可以关闭可计算的可判定命题，但它证明的是当前形式表达式，不会自动选择正确建模。
+
+\begin{aibox}
+自动形式化系统经常生成“类型上很强、语义上很怪”的 statement，例如把非法输入排除得过多，使 theorem 变得平凡。依赖类型可以增强规范，也可以隐藏任务偷换；必须把自然语言输入域、Lean 类型和排除条件逐项对照。
+\end{aibox}
+
+\begin{checkpointbox}
+\begin{enumerate}
+  \item 用 \code{Fin n} 解释安全索引为何不会越界；
+  \item 比较“精确类型”和“结构加不变量”两种状态建模方式；
+  \item 编译 \code{StreamState.push\_preserves} 并逐步展开目标；
+  \item 构造一个 subtype 值，分别访问值与证明字段；
+  \item 说明 dependent transport 和普通等式重写有何不同；
+  \item 诊断一个 typeclass instance synthesis 失败的最小例子。
+\end{enumerate}
+\end{checkpointbox}

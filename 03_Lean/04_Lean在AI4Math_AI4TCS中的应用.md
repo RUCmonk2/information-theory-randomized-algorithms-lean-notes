@@ -1,5 +1,7 @@
 # Lean 在 AI4Math / AI4TCS 中的应用
 
+> 完整讲解见 [Lean 4 与 mathlib 自学讲义](讲义/Lean自学讲义.pdf)第 7--8 章；本文件保留为应用入口和最小实践清单。
+
 ## 1. Lean 的位置
 
 Lean 是 proof assistant 和可编程形式系统。它适合作为 verifier 或 proof checker，不等于自动发现数学真理的模型。AI 系统可以负责生成候选定义、证明步骤、程序或修复建议，Lean kernel 负责检查最终证明项。

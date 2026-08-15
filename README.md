@@ -25,7 +25,9 @@
 
 - [信息论自学讲义 PDF](01_信息论/讲义/信息论自学讲义.pdf)：熵、互信息、KL、信源编码、信道容量、随机编码、Sketch/AI4TCS 和习题答案。
 - [随机算法自学讲义 PDF](02_随机算法/讲义/随机算法自学讲义.pdf)：概率界、经典随机算法、抽样/哈希、数据流 Sketch、随机游走、AI4TCS verifier 和习题答案。
-- 两本讲义都保留模块化 LaTeX 源码，并可用 `scripts/build_pdf.sh` 复现；最终 PDF 之外的编译产物不进入仓库。
+- [Lean 4 与 mathlib 自学讲义 PDF](03_Lean/讲义/Lean自学讲义.pdf)：项目环境、命题即类型、归纳/依赖类型、mathlib、算法不变量、有限概率和证明工程。
+- [AI4Math / AI4TCS 交叉应用讲义 PDF](04_AI4Math_AI4TCS交叉应用/讲义/AI4Math_AI4TCS交叉应用讲义.pdf)：generator--verifier、学习增强 Sketch、算法候选验证、Lean 自动形式化、实验协议和两周项目执行。
+- 四本讲义都保留模块化 LaTeX 源码，并可用 `scripts/build_pdf.sh` 复现；最终 PDF 之外的编译产物不进入仓库。
 
 ## 12 周路线概览
 

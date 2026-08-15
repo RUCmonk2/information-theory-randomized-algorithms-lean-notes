@@ -1,0 +1,160 @@
+\chapter{项目 B：随机算法候选的自动验证器}
+
+\section{先选一个可穷举的小对象}
+
+两周项目不训练大型 agent，目标是完整体验候选生成、分层验证、反馈、过拟合和最终审计。对象应满足：接口短、小规模有精确 oracle、能生成反例、性能指标可单独测量。
+
+合适起点包括：
+\begin{itemize}
+  \item 小型集合覆盖的选择顺序；
+  \item 图遍历中的邻居排序或 tie-breaking 规则；
+  \item 小规模调度/装箱启发式；
+  \item 数据结构操作序列；
+  \item 固定尺寸代数表达式或矩阵乘法候选；
+  \item Count-Min 参数/查询组合的受限 DSL。
+\end{itemize}
+不要选择“任意 Python 程序解决 NP-hard 问题”这类无限且无精确边界的空间。
+
+\section{候选接口与纯函数边界}
+
+候选应是可隔离调用的纯函数或受限 DSL：
+\begin{lstlisting}
+def candidate(instance, config):
+    """Return a solution object, not a printed explanation."""
+    ...
+\end{lstlisting}
+Verifier 负责检查返回对象，不信任候选自己报告的分数。必须限制运行时间、内存、文件/网络访问和输出大小；即使项目完全由自己生成，也要把候选当作不可信代码处理。
+
+更安全的入门方案是让 generator 输出 JSON/AST，由自己的解释器执行，而不是直接 \code{eval} 任意字符串。类型化 grammar 可在生成阶段排除大量语法与接口错误。
+
+\section{正确性与性能必须分层}
+
+设可行性谓词为 $F(x,c)$，目标函数为 $J(x,c)$。候选先满足
+\[
+F(x,c)=\mathrm{true},
+\]
+再在可行集合中比较 $J$。评分可用字典序：
+\[
+\mathrm{score}(c)=
+\bigl(\mathbf{1}[\text{all mandatory correctness tests pass}],
+-J(c)\bigr).
+\]
+这样“输出空解、速度极快”不会胜过正确但稍慢的算法。若允许近似解，需把可行性和 approximation ratio 分开。
+
+\section{五层 verifier}
+
+\begin{enumerate}
+  \item \textbf{接口层}：解析、类型、shape、数值范围、超时与资源上限；
+  \item \textbf{已知单测层}：手工边界例、历史反例和退化输入；
+  \item \textbf{小规模精确层}：枚举所有输入或用可信 solver/oracle；
+  \item \textbf{随机/OOD 层}：不同分布、规模和 seed，保存第一个失败；
+  \item \textbf{最终审计层}：形式不变量、SMT、独立实现、复杂度与文献检查。
+\end{enumerate}
+
+每层返回结构化状态 \code{pass/fail/timeout/unknown} 和证据。\code{unknown} 不能按 pass 处理。
+
+\section{小规模穷举如何设计}
+
+若输入空间在规模 $n\le n_0$ 时有限，枚举器应做到：
+\begin{itemize}
+  \item 每个合法实例恰好被覆盖或可证明覆盖；
+  \item 同构去重不会误删语义不同实例；
+  \item oracle 独立于候选实现；
+  \item 失败时保存最小规模和字典序最小反例；
+  \item 枚举边界 $n_0$、实例数量和耗时进入报告。
+\end{itemize}
+
+“通过所有 $n\le8$ 图”是有限 theorem-like 证据，但仍不是任意 $n$ 正确。它可以帮助猜不变量和构造形式证明。
+
+\section{Hidden tests 的生命周期}
+
+建议四份数据：
+\begin{description}
+  \item[development] 公开边界例，可反复调试；
+  \item[validation] 搜索器可得到有限反馈，用于选择候选；
+  \item[hidden] 搜索过程中不可读取，只在固定 checkpoint 评测；
+  \item[OOD/final] 新分布、新规模或新生成器，在候选冻结后一次审计。
+\end{description}
+
+如果每轮都返回 hidden 的详细错误，它就变成 validation。项目应记录查询次数和揭示的反馈；“文件名叫 hidden”并不能提供隔离。
+
+\section{反例生成与缩小}
+
+反例可能来自穷举、随机/property-based 测试、SMT 或人工边界分析。找到 $x$ 后，定义保持失败的谓词
+\[
+\operatorname{fails}(x,c).
+\]
+缩小操作按对象设计：删除图的边/点、缩短操作序列、减小整数、删除集合元素、降低矩阵维数。使用 delta debugging 时每次只接受仍满足 \code{fails} 的更小对象。
+
+一个反例记录应包含：序列化输入、candidate hash、seed、oracle 输出、候选输出、失败谓词、verifier version 和复现命令。
+
+\section{Freivalds 作为分层验证例子}
+
+验证矩阵候选 $C=AB$ 时，直接乘法成本可能高。Freivalds 在域上随机取向量 $r\in\{0,1\}^n$，检查
+\[
+A(Br)=Cr.
+\]
+若 $AB=C$，总是接受；若不等，单次错误接受概率至多 $1/2$。独立重复 $k$ 次后至多 $2^{-k}$。
+
+分层协议可为：
+\begin{enumerate}
+  \item shape/dtype 检查；
+  \item 小尺寸直接计算 $AB$；
+  \item 大尺寸多次 Freivalds 快速筛选；
+  \item 最终候选做精确乘法、符号恒等式或分解等式验证；
+  \item 运行时间、乘法次数、数值稳定性另行报告。
+\end{enumerate}
+
+\begin{warningbox}
+实现必须说明运算域、整数溢出和随机源。浮点近似相等不满足上述精确域证明；重复使用同一向量也不能按独立重复计算 $2^{-k}$。
+\end{warningbox}
+
+\section{等价去重与原创性}
+
+设候选是操作序列。可先消除死代码、常量折叠、重命名临时变量，再 hash 规范形。对代数构造还可能有置换、缩放或基变换等对称。
+
+但“规范形不同”仍不等于原创。最终候选需要：
+\begin{enumerate}
+  \item 与已知 baseline 做功能和成本对照；
+  \item 搜索相关论文、代码和 benchmark 提交；
+  \item 检查是否只是参数、硬件或固定实例特化；
+  \item 明确新意在构造、搜索方法、理论还是工程实现。
+\end{enumerate}
+
+\section{复杂度不能由少量 timing 拟合}
+
+对规模 $n=4,8,16$ 的运行时间拟合直线或幂律，只能形成经验假设。渐近结论需要分析操作数、递归式、数据结构和最坏/平均输入。固定预算 benchmark 改进可以如实表述为“在给定实例分布和硬件上更快”。
+
+候选若包含预处理、模型调用或巨大常数，也必须计入端到端成本。不要只统计核心函数中最有利的一段。
+
+\section{最小 generator}
+
+Generator 不必一开始就是大模型。可按顺序实现：
+\begin{enumerate}
+  \item 随机采样合法 grammar；
+  \item 对当前候选做局部 mutation；
+  \item 根据失败类型选择 mutation；
+  \item 最后才接语言模型提出候选或修复。
+\end{enumerate}
+若随机/枚举 baseline 已能找到相同结果，就能更准确衡量语言模型的增量价值。
+
+\section{指标与失败分类}
+
+报告：合法候选率、mandatory tests 通过率、hidden/OOD 通过率、首次正确候选所需查询数、唯一等价类数、最小反例规模、wall-clock、timeout 率和最佳可行目标值。
+
+失败分类至少包括 parse/type、exception、timeout、不可行、功能错误、数值问题、过拟合 validation、重复候选和 verifier 漏洞。
+
+\begin{protocolbox}
+两周最低交付：一个受限候选接口、一个独立 oracle、development/validation/hidden/OOD 四层实例生成器、一张失败分类表、至少一个缩小反例，以及一份说明哪些性质只经验验证、哪些已有形式或一般性保证的笔记。
+\end{protocolbox}
+
+\begin{checkpointbox}
+\begin{enumerate}
+  \item 选择一个可精确枚举的小对象并定义 candidate 接口；
+  \item 把正确性门槛和性能目标写成两个函数；
+  \item 设计五层 verifier 和每层的 timeout/unknown 行为；
+  \item 定义 hidden 数据何时可被查询以及反馈精度；
+  \item 为对象写三个反例缩小操作；
+  \item 说明固定实例速度、经验 scaling 与渐近复杂度的区别。
+\end{enumerate}
+\end{checkpointbox}

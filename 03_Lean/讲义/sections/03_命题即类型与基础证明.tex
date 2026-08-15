@@ -1,0 +1,150 @@
+\chapter{命题即类型与基础证明}
+
+\section{Curry--Howard 对应}
+
+Lean 中命题位于 \code{Prop}，证明命题 $P$ 就是构造一个类型为 $P$ 的项。常见逻辑连接词对应类型构造：
+\begin{center}
+\begin{tabularx}{0.94\textwidth}{>{\bfseries}l l X}
+\toprule
+逻辑 & Lean 形式 & 证明数据 \\
+\midrule
+$P\Rightarrow Q$ & \code{P -> Q} & 把 $P$ 的证明映到 $Q$ 的证明的函数 \\
+$P\land Q$ & \code{And P Q} & 同时含 $P$ 与 $Q$ 证明的结构 \\
+$P\lor Q$ & \code{Or P Q} & 左分支或右分支，并携带相应证明 \\
+$\forall x, P(x)$ & \code{forall x, P x} & 对每个 $x$ 返回证明的依赖函数 \\
+$\exists x, P(x)$ & \code{Exists fun x => P x} & 一个 witness 和它满足性质的证明 \\
+$\neg P$ & \code{Not P} & 从 $P$ 的证明导出 \code{False} 的函数 \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+这一观点把“证明步骤”变成精确的构造操作，而不是自然语言中模糊的“显然”。
+
+\section{直接证明与 tactic proof}
+
+同一个定理可以直接写 proof term，也可以用 tactic 逐步构造：
+\begin{lstlisting}
+example (p q : Prop) (hp : p) (hq : q) : And p q :=
+  And.intro hp hq
+
+example (p q : Prop) (hp : p) (hq : q) : And p q := by
+  constructor
+  exact hp
+  exact hq
+\end{lstlisting}
+第二段执行 \code{constructor} 后产生两个目标。编辑器展示的 proof state 可以抽象成：
+\[
+\underbrace{p,q:\PropT,\ hp:p,\ hq:q}_{\text{local context}}
+\quad\vdash\quad
+\underbrace{p\land q}_{\text{target}}.
+\]
+每个 tactic 都应当被理解为如何改变这个 judgment。
+
+\section{蕴含、全称量词与引入}
+
+证明函数类型时，引入输入：
+\begin{lstlisting}
+example (p q : Prop) : p -> q -> p := by
+  intro hp
+  intro hq
+  exact hp
+
+example : forall n : Nat, n = n := by
+  intro n
+  rfl
+\end{lstlisting}
+\code{intro} 不是“假设结论成立”，而是按照函数类型构造一个接受证明或对象的函数。
+
+\section{合取、析取与分类讨论}
+
+合取的使用是拆字段，析取的使用必须覆盖两个分支：
+\begin{lstlisting}
+example (p q : Prop) (h : And p q) : And q p := by
+  cases h with
+  | intro hp hq => exact And.intro hq hp
+
+example (p q : Prop) (h : Or p q) : Or q p := by
+  cases h with
+  | inl hp => exact Or.inr hp
+  | inr hq => exact Or.inl hq
+\end{lstlisting}
+\code{cases} 按 \code{And.intro} 构造子拆出两个字段。Lean 也支持更紧凑的结构模式，但它不会减少需要提供的数据。
+
+\section{存在量词必须给出 witness}
+
+\begin{lstlisting}
+example : Exists fun n : Nat => n + 1 = 4 := by
+  refine Exists.intro 3 ?_
+  rfl
+\end{lstlisting}
+\code{refine} 提供带“洞”的部分证明，\code{?\_} 变成新目标。存在性证明的核心是 witness $3$，而不是 tactic 的名字。
+
+\section{否定、矛盾与底类型}
+
+\code{False} 没有构造子；一旦得到它，可以推出任意命题：
+\begin{lstlisting}
+example (p : Prop) (hp : p) (hnp : Not p) : False := by
+  exact hnp hp
+
+example (p q : Prop) (h : p -> q) (hnq : Not q) : Not p := by
+  intro hp
+  exact hnq (h hp)
+\end{lstlisting}
+第二条定理的目标 \code{Not p} 展开就是 \code{p -> False}，所以先 \code{intro hp}。
+
+\section{等式、重写与简化}
+
+若有 $h:a=b$，\code{rw [h]} 按方向把 $a$ 替换为 $b$；\code{rw [<- h]} 反向替换。\code{simp} 使用标记过的简化规则反复重写：
+\begin{lstlisting}
+example (a b c : Nat) (h : a = b) : a + c = b + c := by
+  rw [h]
+
+example (xs : List Nat) : [] ++ xs = xs := by
+  simp
+\end{lstlisting}
+\code{rw} 更适合表达“使用了哪条等式”；\code{simp} 更适合清理单位元、构造子和已注册规则。遇到失败时，先明确期望哪一处发生哪种替换。
+
+\section{常用 tactic 的逻辑角色}
+
+\begin{center}
+\begin{tabularx}{0.94\textwidth}{>{\ttfamily}lX}
+\toprule
+\normalfont tactic & 主要作用 \\
+\midrule
+intro & 为函数、蕴含或全称目标引入变量/假设 \\
+exact & 提供类型与当前目标完全匹配的证明项 \\
+apply & 反向使用定理，把当前目标变成它的前提 \\
+constructor & 使用目标类型的构造子并产生字段目标 \\
+cases & 按归纳类型或析取的构造子分支讨论 \\
+rcases & 用模式拆解存在、合取或结构 \\
+rw & 按给定等式定向重写 \\
+simp & 用简化规则集做规范化重写 \\
+have & 声明局部中间结论，控制证明结构 \\
+show & 重新表述当前目标，帮助 elaboration 或阅读 \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\section{构造逻辑与经典逻辑}
+
+Lean 的核心逻辑是构造性的。排中律、双重否定消去等经典原理可以显式导入或局部使用，但应让依赖可见：
+\begin{lstlisting}
+example (p : Prop) : Or p (Not p) := by
+  classical
+  exact Classical.em p
+\end{lstlisting}
+形式化数学中使用经典逻辑通常完全合理；重要的是不要把“可构造 witness”与“经典地证明存在”混为一谈，尤其当后续希望从证明提取算法时。
+
+\begin{warningbox}
+Tactic 成功不等于你已经理解定理。至少应能回答：当前目标是什么、tactic 使用了哪个构造子或定理、产生了哪些子目标、是否引入经典公理，以及删除哪个假设后证明会失败。
+\end{warningbox}
+
+\begin{checkpointbox}
+\begin{enumerate}
+  \item 分别用 proof term 和 tactic 证明合取交换；
+  \item 证明 \code{(p -> q) -> (Not q -> Not p)}，逐行解释 proof state；
+  \item 构造一个自然数 witness，证明某个简单存在命题；
+  \item 用 \code{rw} 与 \code{simp} 各完成一个等式证明，并比较两者；
+  \item 找出一个需要经典逻辑的命题，明确标出 \code{classical} 的作用域。
+\end{enumerate}
+\end{checkpointbox}

@@ -1,0 +1,165 @@
+\chapter{两周项目执行与可复现交付}
+
+\section{先用决策表只选一个项目}
+
+\begin{center}
+\begin{tabularx}{0.96\textwidth}{>{\bfseries}lYYY}
+\toprule
+条件 & 项目 A & 项目 B & 项目 C \\
+\midrule
+最接近已有 Sketch 背景 & 强 & 中 & 弱 \\
+最快得到误差曲线 & 强 & 中 & 弱 \\
+最能练 AI4TCS 闭环 & 中 & 强 & 中 \\
+最能练 kernel 证据 & 弱 & 中 & 强 \\
+主要风险 & 预测接口含糊 & verifier 过拟合 & Lean/概率接口过大 \\
+默认选择 & 首选 & 次选 & Lean 基础稳定后 \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+若当前目标是连接信息论、数据流和已有阅读，选 A；若想理解算法发现系统，选 B；若已能独立写 10 个 Lean theorem，选 C。不要为了“完整”同时启动三套代码。
+
+\section{第 0 天：冻结项目契约}
+
+用一页写清：
+\begin{enumerate}
+  \item 一句话问题和不声称的结论；
+  \item object / representation / generator / verifier；
+  \item 一个主 baseline 和一个简单消融；
+  \item 主指标、预算和成功阈值；
+  \item development/validation/hidden/OOD 的生成方式；
+  \item 两周停止条件；
+  \item 最终要留下的文件。
+\end{enumerate}
+契约允许版本化修改，但每次修改都要记录原因，不能无痕移动目标。
+
+\section{十个工作日节奏}
+
+\begin{center}
+\begin{tabularx}{0.96\textwidth}{>{\bfseries}lX X}
+\toprule
+天 & 核心任务 & 当日可检查产出 \\
+\midrule
+1 & 定义对象、假设和主 claim & \code{Problem.md} v1 \\
+2 & 实现 exact/oracle 与数据生成 & 三个手工例 + 一个边界例 \\
+3 & 跑通经典/简单 baseline & 固定 schema 原始结果 \\
+4 & 写 verifier 与失败分类 & 一个故意错误候选被拒绝 \\
+5 & 冻结第一周配置 & baseline 表 + 已知风险 \\
+6 & 实现唯一增强/生成策略 & 最小可运行方法 \\
+7 & 加入 validation 与查询预算 & 完整搜索/实验轨迹 \\
+8 & hidden/OOD 与反例缩小 & 至少一个失败案例 \\
+9 & 最终审计、消融和统计 & \code{summary.csv} + 证据登记 \\
+10 & 写结论边界与下一步 & 4--6 页研究笔记 \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+Lean 项目可把第 2--5 天替换为有限枚举、定义、结构 lemma 和主 theorem，但仍保留 hidden 变体与失败记录。
+
+\section{目录模板}
+
+\begin{lstlisting}[language={}]
+project/
+  README.md
+  Problem.md
+  config/
+    baseline.yaml
+    main.yaml
+  src/
+  scripts/
+  tests/
+    development/
+    hidden_generator.py
+  notes/
+    method.md
+    failure_analysis.md
+    evidence_ledger.md
+  results/
+    raw.csv
+    summary.csv
+  environment/
+    requirements.txt
+\end{lstlisting}
+
+配置、代码、结果和叙述分开。\code{raw.csv} 每行对应一个实验单位；\code{summary.csv} 由脚本聚合。Lean 项目用 Lake 文件替换 Python 环境，并增加 \code{ProofStatus.md}。
+
+\section{三个项目的阶段闸门}
+
+\subsection{项目 A}
+
+进入增强算法前，exact counter 与经典 sketch 必须在手工流上吻合预期；空间计费固定；主误差指标冻结。进入最终实验前，必须存在可控 prediction error 生成器和一个错误预测反例。
+
+\subsection{项目 B}
+
+进入搜索前，verifier 必须拒绝至少五类故意错误候选；oracle 与候选实现独立；hidden 查询策略冻结。进入最终审计前，候选等价去重和 timeout/unknown 处理已实现。
+
+\subsection{项目 C}
+
+进入主 theorem 前，三列表和有限 Python 枚举完成；进入最终交付前，\code{lake build} 干净通过、无 \code{sorry}/新增目标公理，并保存一次最小失败修复记录。
+
+\section{证据登记表模板}
+
+\begin{center}
+\begin{tabularx}{0.96\textwidth}{YYY}
+\toprule
+Claim & Evidence & Remaining gap \\
+\midrule
+固定分布下 p95 误差下降 & 20 个独立数据 seed 的 paired 结果 & 未证明 worst-case；只覆盖给定参数 \\
+候选对 $n\le8$ 正确 & 全枚举与独立 oracle & 任意 $n$ 尚无证明 \\
+Lean statement 可证明 & 固定 commit 的无占位 build & 自然语言对齐仍由人工审查 \\
+\bottomrule
+\end{tabularx}
+\end{center}
+每个摘要结论都必须在表中有一行；没有证据行的句子不能进入结论段。
+
+\section{研究笔记结构}
+
+4--6 页 Markdown 或 PDF 足够：
+\begin{enumerate}
+  \item 问题、动机与最小 claim；
+  \item 对象、表示、baseline 与 verifier；
+  \item 方法或候选空间；
+  \item 数据、预算、指标和复现命令；
+  \item 主结果与不确定性；
+  \item 一个成功例与一个失败/反例；
+  \item 证据边界和不声称内容；
+  \item 下一步 go / revise / stop 判断。
+\end{enumerate}
+不要用长背景综述淹没真正实验。相关工作只需要足以判断 baseline 和新意。
+
+\section{Go / revise / stop}
+
+项目结束必须做决定：
+\begin{description}
+  \item[go] 主效应跨 seed/分布稳定，verifier 可信，下一步可尝试理论化或扩大规模；
+  \item[revise] 有局部信号但依赖某个假设，需要更换 prediction interface、表示或 verifier；
+  \item[stop] 固定预算无收益、简单 baseline 同样好、核心 claim 有小反例，或实现成本超出价值。
+\end{description}
+停止结论同样是交付，只要反例、配置和原因可审计。
+
+\section{从两周项目到研究问题}
+
+项目 A 若成功，可问 prediction error 能否进入一般误差界、fallback 是否有最坏情况保证、mergeability 与 side information 是否兼容。项目 B 若成功，可研究反馈精度与泛化、反例引导 search policy、等价类表示或形式审计成本。项目 C 若成功，可扩展 theorem 族、autoformalization 语义评测、proof repair 数据或有限概率库接口。
+
+升级前先补经典 baseline 与相关工作。实验曲线不能直接跳到新 theorem，固定 theorem 也不能直接跳到通用 agent。
+
+\section{发布前安全与仓库审计}
+
+公开仓库检查：无本机绝对路径、token/凭据、私有数据、论文 PDF、巨大运行产物或第三方受限代码；README 包含许可与复现边界；生成 PDF 保留对应源码；中间编译文件和视觉检查图片不入库。
+
+结果若含模型 API 调用，记录模型标识、日期、参数和预算，但不提交密钥。若候选代码不可信，使用隔离环境与资源限制，不让它访问主科研目录。
+
+\begin{protocolbox}
+最终验收不是“代码能跑”，而是：从干净环境可复现主结果；错误候选会被 verifier 拒绝；至少一个失败被解释；证据登记表与摘要 claim 一一对应；仓库只含允许公开的源码、配置、小型结果和文档。
+\end{protocolbox}
+
+\begin{checkpointbox}
+\begin{enumerate}
+  \item 用决策表选定且只选一个两周项目；
+  \item 完成第 0 天项目契约；
+  \item 为自己的项目定义三个不可跳过的阶段闸门；
+  \item 建立 raw/summary 分离的结果 schema；
+  \item 给每个 claim 填 evidence 与 remaining gap；
+  \item 在结项时明确选择 go、revise 或 stop。
+\end{enumerate}
+\end{checkpointbox}

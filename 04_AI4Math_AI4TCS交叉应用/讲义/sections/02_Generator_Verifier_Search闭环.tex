@@ -1,0 +1,136 @@
+\chapter{Generator--Verifier--Search 闭环}
+
+\section{把闭环写成数学对象}
+
+设候选空间为 $\mathcal C$，问题实例为 $x$，生成器在历史 $h_t$ 条件下提出
+\[
+c_t\sim G(\cdot\mid x,h_t).
+\]
+Verifier 返回反馈
+\[
+y_t=V(x,c_t),
+\]
+搜索器再更新历史 $h_{t+1}=(h_t,c_t,y_t)$。终止后输出候选 $\hat c$ 和证据 $e$。这个抽象涵盖 proof search、程序综合、组合构造、算法调参与反例引导修复。
+
+必须额外定义：候选是否合法、反馈含哪些字段、查询预算、终止条件、最终候选是否由比搜索阶段更强的 verifier 复验。
+
+\section{Verifier 的 soundness 与 completeness}
+
+若真实目标性质为 $P(c)$，二值 verifier 返回接受/拒绝。理想 soundness 是
+\[
+V(c)=\mathrm{accept}\Rightarrow P(c),
+\]
+即不接受错误候选；completeness 是
+\[
+P(c)\Rightarrow V(c)=\mathrm{accept},
+\]
+即不拒绝正确候选。
+
+形式 kernel 对固定 statement 的检查接近 sound verifier；有限测试通常两者都不完美：可能漏掉隐藏错误，也可能因超时拒绝正确但慢的程序。实验必须记录 false positive、false negative 与 unknown/timeout，而不是只有一个通过率。
+
+\section{代理目标与真实性质}
+
+昂贵性质 $P$ 常被廉价分数 $S(c)$ 代理。例如用随机测试正确率代理全输入正确性，用小规模运行时间代理渐近性能，用 proof length 代理证明可读性。代理有用的条件是它与最终目标的关系可分析或至少在保留集上验证。
+
+\begin{warningbox}
+生成器会优化你实际给出的分数，而不是你心里想要的性质。只要代理存在漏洞，足够适应性的搜索就可能找到高分但无意义的候选。Verifier 设计不是搜索之后的验收步骤，而是问题定义的一部分。
+\end{warningbox}
+
+\section{分层 verifier 漏斗}
+
+成本从低到高安排检查：
+\begin{center}
+\begin{tikzpicture}[
+  node distance=5mm,
+  box/.style={draw,rounded corners=1mm,align=center,minimum width=7.2cm,minimum height=7mm},
+  arr/.style={-{Stealth[length=2mm]},thick}
+]
+\node[box] (a) {1. 解析、类型、shape 与资源上限};
+\node[box,below=of a] (b) {2. 已知反例与小规模精确枚举};
+\node[box,below=of b] (c) {3. validation / 随机测试};
+\node[box,below=of c] (d) {4. hidden 与 OOD 测试};
+\node[box,below=of d] (e) {5. 形式证明、SMT 或独立精确复验};
+\node[box,below=of e] (f) {6. 等价去重、文献与复杂度人工审查};
+\draw[arr] (a)--(b); \draw[arr] (b)--(c); \draw[arr] (c)--(d);
+\draw[arr] (d)--(e); \draw[arr] (e)--(f);
+\end{tikzpicture}
+\end{center}
+廉价层尽早拒绝明显错误，昂贵层只处理少量候选。每一层都要返回结构化失败原因，否则搜索器只能盲目重采样。
+
+\section{反馈的信息量与适应性过拟合}
+
+若每次反馈最多 $b$ bit，$T$ 轮 transcript 的熵至多 $Tb$ bit，因此候选可从 verifier 获得的信息也受此上界约束。这个观察不能直接给出泛化定理，却提醒我们：分数、小数精度、错误位置和完整反例都在泄漏测试信息。
+
+当生成器反复根据同一 validation 集反馈修改候选时，validation 已参与训练。即使没有显式梯度，也会发生适应性过拟合。对策包括：
+\begin{itemize}
+  \item 限制查询次数和反馈精度；
+  \item 搜索、validation、hidden、final audit 使用不同数据；
+  \item hidden 结果只在固定里程碑揭示；
+  \item 最终候选在新生成实例或独立实现上复验；
+  \item 完整记录每次查询，不能只展示最优一次。
+\end{itemize}
+
+\section{表示、规范化与等价类}
+
+若候选 $c$ 与 $c'$ 只差变量重命名、操作交换或图同构，搜索器重复探索它们会浪费预算，也会夸大候选多样性。定义等价关系 $c\sim c'$ 后，应尽可能使用规范形 $\operatorname{canon}(c)$ 或 hash 去重。
+
+但规范化本身需要验证：
+\[
+c\sim c'\Rightarrow
+P(c)=P(c'),\quad S(c)=S(c')
+\]
+是否成立取决于目标。两个代数表达式功能等价，数值稳定性和硬件性能仍可能不同，因此不能在所有评价层共用同一等价关系。
+
+\section{反例比一个负分更有价值}
+
+设候选在输入 $x$ 上失败。理想反馈包含：
+\begin{enumerate}
+  \item 可重放的输入与 seed；
+  \item 期望输出、实际输出和失败谓词；
+  \item 失败层级（解析、正确性、性能、超时等）；
+  \item 缩小后的最小反例；
+  \item 当前 verifier 版本与配置 hash。
+\end{enumerate}
+
+反例缩小可以删除输入元素、减小数值、收缩图或简化表达式，只要失败仍保留。最小反例既帮助人理解，也给生成器更清晰的修复信号。
+
+\section{一个最小搜索框架}
+
+\begin{lstlisting}
+history = []
+best = None
+
+for step in range(search_budget):
+    candidate = generator.propose(problem, history)
+    candidate = canonicalize(candidate)
+
+    result = cheap_verifier(candidate)
+    if result.passed:
+        result = validation_verifier(candidate)
+
+    history.append((candidate, result.summary))
+    best = update_best(best, candidate, result)
+
+final_result = hidden_and_exact_audit(best)
+save_run(problem, history, best, final_result)
+\end{lstlisting}
+框架故意把搜索反馈与最终审计分开。\code{best} 不能仅按性能选；首先必须满足明确正确性门槛。
+
+\section{何时停止}
+
+预先定义停止条件：查询预算耗尽、连续若干轮无新等价类、正确候选已达到目标、verifier 漏洞被发现、运行资源超过上限，或核心 claim 已被反例否定。停止并不等于失败；明确的否定结果可以防止继续堆模型复杂度。
+
+\begin{protocolbox}
+每次运行固定保存：problem version、候选 grammar、生成器版本、所有 seed、查询预算、每层 verifier 配置、完整候选/反馈轨迹、最小反例、最终独立审计和 wall-clock/资源统计。
+\end{protocolbox}
+
+\begin{checkpointbox}
+\begin{enumerate}
+  \item 写出自己项目的 $\mathcal C,G,V,h_t$ 和终止条件；
+  \item 区分 verifier soundness、completeness、timeout 与 unknown；
+  \item 设计一个从语法检查到最终形式审计的成本漏斗；
+  \item 列出反馈中会泄漏 validation 信息的字段；
+  \item 定义候选等价关系和规范化边界；
+  \item 把一个失败输入缩成更小反例并保存可重放信息。
+\end{enumerate}
+\end{checkpointbox}

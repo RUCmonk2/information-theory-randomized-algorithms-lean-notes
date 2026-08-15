@@ -1,0 +1,157 @@
+\chapter{Lean 在 AI4Math 与 AI4TCS 中的证明工程}
+
+\section{Lean 在闭环中的位置}
+
+一个典型闭环为：
+\begin{center}
+\begin{tikzpicture}[
+  node distance=6mm,
+  box/.style={draw,rounded corners=1mm,align=center,minimum width=4.8cm,minimum height=8mm},
+  arr/.style={-{Stealth[length=2mm]},thick}
+]
+\node[box] (nl) {自然语言问题与背景};
+\node[box,below=of nl] (stmt) {形式 statement 与定义};
+\node[box,below=of stmt] (gen) {模型/搜索器生成 proof 或 program};
+\node[box,below=of gen] (lean) {Lean elaboration 与 kernel 检查};
+\node[box,below=of lean] (fb) {proof state、错误与反例反馈};
+\node[box,below=of fb] (human) {人类审查语义、假设、意义与复杂度};
+\draw[arr] (nl)--(stmt); \draw[arr] (stmt)--(gen); \draw[arr] (gen)--(lean);
+\draw[arr] (lean)--(fb); \draw[arr] (fb)--(human);
+\draw[arr] (fb.east) .. controls +(2.1,0) and +(2.1,0) .. (gen.east);
+\end{tikzpicture}
+\end{center}
+
+Lean 是强 verifier，不是自动保证研究全流程正确的神谕。它精确回答“这个 proof term 是否证明了这个形式 statement”，其余问题需要额外证据。
+
+\section{AI4Math 的四类任务}
+
+\begin{description}
+  \item[定理证明] statement 已给定，在固定环境中搜索 kernel 可接受证明；
+  \item[自动形式化] 把自然语言、公式和上下文翻译成 Lean 定义与 statement；
+  \item[proof repair] 给定失败代码和环境，修复证明而保持 statement 语义不变；
+  \item[猜想与对象发现] 生成候选定理、反例、构造或数学对象，再经形式/数值工具筛选。
+\end{description}
+这四类任务的输入、成功条件和风险不同。定理证明 benchmark 上的成功率不能直接代表自动形式化忠实度，更不能代表发现了有价值的新数学。
+
+\section{statement fidelity 是独立任务}
+
+自然语言到 Lean 至少要核对：
+\begin{enumerate}
+  \item 量词范围：所有对象、存在对象还是某个固定对象；
+  \item 输入域：自然数、整数、实数、有限图还是任意图；
+  \item 前提：非空、独立、连通、可测、有限等条件是否遗漏；
+  \item 等价概念：自然语言术语是否与库定义同义；
+  \item 结论强度：严格不等式、近似界、概率至少多少；
+  \item 退化情形：是否通过加入过强假设或空类型让命题平凡成立。
+\end{enumerate}
+
+推荐维护三列表：自然语言片段、数学形式、Lean 片段，并对每一处量词和假设做对齐。kernel 无法替你完成这张表。
+
+\section{proof search 的状态、动作与反馈}
+
+形式证明搜索可以建模为：
+\begin{description}
+  \item[state] 当前 goals、local context、已导入环境与选项；
+  \item[action] tactic、term、lemma application 或 statement decomposition；
+  \item[transition] Lean 执行动作后产生新 goals 或错误；
+  \item[reward/feedback] 是否编译、目标数量变化、错误类型、证明长度与资源成本；
+  \item[terminal] 无 goals 且无占位，kernel 接受最终声明。
+\end{description}
+
+仅以“编译通过”为奖励会鼓励系统寻找捷径，例如修改 statement、加入不允许的公理或利用数据泄漏。评测必须冻结目标和允许环境，并审计依赖。
+
+\section{proof repair 的不变约束}
+
+一个真正的 proof repair 任务至少固定：
+\begin{itemize}
+  \item theorem statement；
+  \item Lean/mathlib 版本；
+  \item 允许修改的代码范围；
+  \item 禁止新增的公理、\code{sorry} 和不透明外部假设；
+  \item 资源预算与是否允许网络检索；
+  \item 最终要运行的干净构建命令。
+\end{itemize}
+若允许修改 statement，任务就变成联合的 statement repair，需要单独评估语义是否保留。
+
+\section{AI4TCS 中的算法验证}
+
+候选算法通常需要多种 verifier：
+\begin{enumerate}
+  \item parser/type checker 确认接口；
+  \item 小规模穷举寻找功能反例；
+  \item 随机与 OOD 测试检查经验泛化；
+  \item SMT/SAT 检查有限域或约束性质；
+  \item Lean 证明不变量、refinement 或数学 theorem；
+  \item 人类分析时间、空间、随机位和渐近复杂度。
+\end{enumerate}
+Lean 适合组合已精确定义的性质，但性能结果通常需要成本模型；“函数定义可执行”并不自动给出 $O(n\log n)$。
+
+\section{证据登记表}
+
+\begin{center}
+\begin{tabularx}{0.96\textwidth}{>{\bfseries}lX X}
+\toprule
+证据 & 可以支持 & 不能单独支持 \\
+\midrule
+Lean kernel 接受 & 当前声明在当前环境中可证明 & 翻译忠实、原创、有用、实现高效 \\
+小规模穷举 & 范围内无反例或找到反例 & 任意规模 correctness \\
+随机测试 & 指定分布与预算下表现 & worst-case guarantee \\
+SMT/SAT unsat & 编码约束下没有反例 & 编码忠实、无限域结论 \\
+基准分数 & 固定 benchmark 上的经验能力 & 开放世界研究能力 \\
+复杂度证明 & 成本模型下的资源上界 & 常数、工程性能、模型外实现 \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\section{数据集与污染问题}
+
+形式定理有精确字符串和依赖图，近重复与泄漏尤其容易发生。拆分 benchmark 时应考虑：
+\begin{itemize}
+  \item 同一定理的重命名、等价改写和自动生成变体；
+  \item theorem 之间的依赖边，测试定理是否已作为训练 lemma 出现；
+  \item 仓库时间切分与版本历史；
+  \item 自然语言题与形式 statement 的跨语料对应；
+  \item 搜索时访问的文档、检索库和缓存。
+\end{itemize}
+随机按 theorem 行拆分通常不足以排除结构泄漏。
+
+\section{失败轨迹也是研究产物}
+
+成功 proof 只展示一条路径；失败轨迹包含模型真正缺失的信息。建议保存：
+\begin{enumerate}
+  \item 原始 statement 与环境 hash；
+  \item 每一步 proof state 和候选动作；
+  \item parser、elaboration、timeout、unknown lemma 等错误分类；
+  \item 最小失败例子与人工修复理由；
+  \item 是否修改定义、假设或导入；
+  \item 最终 proof 的依赖和构建日志摘要。
+\end{enumerate}
+这些信息可用于错误分析、proof repair、检索改进与可复现实验，而不只是“成功/失败”一位标签。
+
+\section{个人可完成的最小闭环}
+
+选择一个 20--50 行的有限对象 theorem：
+\begin{enumerate}
+  \item 写自然语言、数学式和 Lean statement 对照；
+  \item 手写 baseline proof；
+  \item 人为制造 5 类局部错误；
+  \item 让模型或搜索工具尝试修复，并保存每次错误反馈；
+  \item 在隐藏的同构变体上测试；
+  \item 运行干净 \code{lake build}；
+  \item 报告成功率、失败类型、证明依赖与语义审查结果。
+\end{enumerate}
+
+\begin{warningbox}
+不要以“Lean 编译成功”概括整个项目。准确表述应指出：哪个 statement、哪个 toolchain、是否无 \code{sorry}/额外公理、自然语言对齐如何检查、实现和复杂度是否在形式化范围内。
+\end{warningbox}
+
+\begin{checkpointbox}
+\begin{enumerate}
+  \item 区分 theorem proving、autoformalization、proof repair 与 conjecture discovery；
+  \item 为一个自然语言题制作 statement fidelity 对照表；
+  \item 把 proof search 写成 state/action/transition/terminal；
+  \item 为 proof repair 任务写出不可修改约束；
+  \item 设计一个 Lean、穷举、随机测试和人工审查分工的 verifier；
+  \item 解释为什么随机 theorem split 可能产生依赖泄漏。
+\end{enumerate}
+\end{checkpointbox}

@@ -1,0 +1,76 @@
+\chapter{综合习题与参考答案}
+
+\section{习题}
+
+\begin{enumerate}[label=\textbf{L\arabic*.}]
+  \item 画出 Lean 源码从 parser/elaborator 到 kernel 的处理路径，并说明 tactic 为什么不必属于可信内核。
+  \item 建立最小 Lake 项目，写出需要提交以复现构建的文件，以及不应提交的缓存目录。
+  \item 定义 \code{triple : Nat -> Nat}，用 \code{\#eval} 计算一个例子，再证明 \code{triple n = n+n+n}。
+  \item 分别用 proof term 与 tactic 证明 \code{p -> q -> And p q}。
+  \item 证明 \code{Or p q -> Or q p}，解释为什么必须做两个分支。
+  \item 对列表证明 \code{List.reverse (List.reverse xs) = xs}。若直接搜索 mathlib 引理，记录其完整类型；若手工证明，写出归纳结构。
+  \item 定义一棵二叉树和节点计数函数，证明镜像保持节点数。
+  \item 给出一个归纳假设太弱的例子，写出加强后的 theorem statement。
+  \item 用 \code{Fin xs.length} 定义安全索引，说明为什么空列表上无法构造索引参数。
+  \item 对 \code{StreamState.push\_preserves} 逐步写出展开前目标、展开后目标和所用自然数引理。
+  \item 构造一个 mathlib theorem 搜索失败的最小例子，按“定义/导入/类型/实例/引理”分类根因。
+  \item 在有限均匀样本空间中证明 indicator 的期望等于事件概率，列出分母非零假设。
+  \item 把 reservoir sampling 的正确性至少拆成状态安全、随机选择分布和最终边缘概率三层。
+  \item 为一个自然语言定理写自然语言、数学式、Lean statement 三列对照，找出至少两个可能的语义丢失点。
+  \item 设计一个 proof-repair 小实验：固定 statement 和 toolchain，定义允许修改范围、五类错误、指标与 hidden 变体。
+\end{enumerate}
+
+\section{参考答案与提示}
+
+\paragraph{L1.}
+路径为源码/tactic $\to$ parser 与 elaborator $\to$ 带完整隐式信息的核心表达式/证明项 $\to$ kernel 类型检查。Tactic 只负责构造候选证明项；只要最终项由 kernel 复查，tactic 自身出错通常导致拒绝或产生错误候选，而不是直接让错误 theorem 被接受。
+
+\paragraph{L2.}
+至少提交 \code{lean-toolchain}、Lake 配置、manifest、所有项目源码和构建说明。\code{.lake/}、编辑器状态和本机缓存不作为源代码提交。复现命令应从干净 checkout 运行 \code{lake build}。
+
+\paragraph{L3.}
+\begin{lstlisting}
+def triple (n : Nat) : Nat := n + n + n
+
+#eval triple 4
+
+example (n : Nat) : triple n = n + n + n := by
+  rfl
+\end{lstlisting}
+\code{rfl} 成功是因为展开定义后两边相同；\code{\#eval} 只展示输入 4 的结果。
+
+\paragraph{L4.}
+直接项为 \code{fun hp hq => And.intro hp hq}。Tactic 版先 \code{intro hp hq}，再 \code{exact And.intro hp hq}，或者 \code{constructor <;> assumption}。应能解释最终项仍是一连串函数与构造子。
+
+\paragraph{L5.}
+对输入证明 \code{h : Or p q} 做 \code{cases h}。左分支携带 \code{hp : p}，输出 \code{Or.inr hp}；右分支携带 \code{hq : q}，输出 \code{Or.inl hq}。析取值可能由任一构造子产生，漏掉分支就不是总证明。
+
+\paragraph{L6.}
+mathlib 已有 \code{List.reverse\_reverse}，应先 \code{\#check List.reverse\_reverse} 并按当前版本的参数应用。手工证明对 \code{xs} 归纳，\code{cons} 分支需要 reverse 与 append 的关系；这也说明复用库 lemma 比从头展开更合适。
+
+\paragraph{L7.}
+按 \code{empty/node} 归纳。空树直接 \code{rfl}；节点分支使用左右子树两个归纳假设，再用自然数加法交换律/结合律处理镜像交换后的顺序。正文 \code{BinTree.size\_mirror} 给出参考骨架。
+
+\paragraph{L8.}
+尾递归求和若只证明初始累加器为 0，归纳分支通常需要对新的累加器 $acc+x$ 使用假设。应加强为“对任意 $acc$，尾递归结果等于 $acc+\mathrm{sum}(xs)$”，并在归纳时保持 $acc$ 一般。
+
+\paragraph{L9.}
+\code{safeGet (xs) (i : Fin xs.length)} 的 \code{i} 包含一个自然数值与小于 \code{xs.length} 的证明。当 \code{xs=[]} 时需要构造 \code{Fin 0}，即给出小于 0 的自然数，这是不可能的。
+
+\paragraph{L10.}
+展开前目标是 \code{Inv (s.push x)}；展开后是 \code{(x::s.kept).length <= s.seen+1}，化简为 \code{s.kept.length+1 <= s.seen+1}。由假设和 \code{Nat.succ\_le\_succ} 得到，\code{simpa} 只负责连接表达形式。
+
+\paragraph{L11.}
+合格记录要包含最小源码、toolchain、完整错误、proof state、候选定理的 \code{\#check} 和最终分类。若换一个 import 就成功，根因是依赖；若 \code{@theorem} 显示参数类型不同，根因是类型/隐式参数；若缺 \code{DecidableEq A}，根因是实例或缺少假设。
+
+\paragraph{L12.}
+对 indicator 在 $\Omega$ 上求和，恰得到满足 $E$ 的元素个数。两边除以 $|\Omega|$ 得结论。必须假设 $\Omega$ 有限且非空，并明确均匀分布；事件需要可判定以便有限计算。
+
+\paragraph{L13.}
+状态安全包括样本大小不超过 $k$、索引合法；随机选择分布说明第 $n$ 步替换位置的抽样方式；最终边缘概率通过对 $n$ 归纳证明每个已见元素被保留的概率为 $\min(1,k/n)$。只完成第一层不能声称 reservoir sampling 分布正确。
+
+\paragraph{L14.}
+重点检查量词、输入域、非空/有限/独立等假设、严格或非严格关系，以及退化输入。例如把“任意连通图”误译成“任意图”，或额外假设候选解已经最优，都会改变语义，即使 Lean 能证明新 statement。
+
+\paragraph{L15.}
+固定 theorem 文本、imports 和 toolchain；只允许改 proof body。错误可包括错 lemma 名、等式方向、缺失分支、归纳变量错误和实例缺失。报告修复成功率、平均尝试数、错误分类、proof 长度、是否引入禁止依赖，并在变量重命名/同构改写的 hidden theorem 上复测。

@@ -1,0 +1,138 @@
+\chapter{领域边界、任务地图与证据等级}
+
+\section{AI4Math、AI4TCS 与 TCS4AI}
+
+三个相近名称对应不同方向：
+\begin{description}
+  \item[AI4Math] 用 AI 辅助数学问题表示、证明、形式化、猜想和研究协作；
+  \item[AI4TCS] 用 AI 辅助算法发现、复杂性探索、组合优化、程序综合、求解器与验证；
+  \item[TCS4AI] 用理论计算机科学分析学习系统的泛化、优化、鲁棒性、隐私、复杂度和可验证性。
+\end{description}
+一个项目可能同时涉及多项，例如用学习器生成算法候选属于 AI4TCS，而分析该学习器能查询 verifier 多少次、会泄漏多少信息属于 TCS4AI。必须先说明当前论文或实验在回答哪一个方向的问题。
+
+\section{AI4Math 不是单一 benchmark}
+
+至少区分五类对象：
+\begin{enumerate}
+  \item \textbf{自然语言解题}：输出可读推理或答案，常由标准答案、规则或人工评分；
+  \item \textbf{形式定理证明}：statement 固定，输出 proof term/tactic，由 proof assistant 检查；
+  \item \textbf{自动形式化}：把自然语言和上下文翻译为定义与 statement；
+  \item \textbf{猜想或对象发现}：生成新的序列、构造、恒等式、反例或几何辅助对象；
+  \item \textbf{研究级协作}：检索文献、运行计算、提出假设、验证局部 lemma 并维护证据链。
+\end{enumerate}
+
+形式证明通过率主要评估第二类；它不能直接替代 statement 翻译忠实度，也不能说明生成结论新颖或重要。
+
+\section{AI4TCS 的对象地图}
+
+\begin{center}
+\begin{tabularx}{0.96\textwidth}{>{\bfseries}lX X}
+\toprule
+方向 & 候选对象 & 核心 verifier \\
+\midrule
+算法发现 & 程序、递推式、更新规则 & 正确性测试、形式证明、成本模型 \\
+组合优化 & 可行解、局部搜索策略 & 约束检查、目标值、近似界 \\
+矩阵乘法 & 双线性分解、张量分解 & 代数恒等式、乘法次数、数值稳定性 \\
+程序综合 & 满足规范的程序 & 类型、测试、SMT/证明、资源限制 \\
+求解器设计 & 分支、变量、重启启发式 & 求解正确性与实例分布性能 \\
+复杂性探索 & 上界构造、下界证据 & 一般性证明、归约、反例与文献审查 \\
+数据流/Sketch & 状态更新、估计器、参数策略 & 误差、失败概率、空间与 mergeability \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+同一个 evaluator 分数可能混合正确性和性能。研究设计应先让错误候选得不到“性能优秀”的奖励，再讨论如何在正确集合中优化成本。
+
+\section{统一的六字段分析}
+
+对任何代表工作或自己的想法，固定填写：
+\begin{description}
+  \item[Object] 搜索的是 proof、program、公式、张量分解还是实验配置；
+  \item[Representation] token、语法树、DSL、图、张量或 Lean expression；
+  \item[Generator] 枚举、进化、强化学习、语言模型、人类启发式或混合系统；
+  \item[Verifier] 精确、形式、随机、经验或代理评价；
+  \item[Guarantee] 一般定理、有限范围证明、高概率界或经验改进；
+  \item[Generalization] 是否跨实例、分布、规模、表示和硬件。
+\end{description}
+
+这六字段可以防止把“模型更强”“验证过了”“算法更快”等模糊句子直接当结论。
+
+\section{表示不是中性容器}
+
+设真实对象集合为 $\mathcal O$，编码空间为 $\mathcal Z$，解码器 $d:\mathcal Z\to\mathcal O$。表示会决定：
+\begin{itemize}
+  \item 哪些对象可表达，哪些被排除；
+  \item 等价对象是否出现大量重复编码；
+  \item 局部编辑是否对应有意义的对象变化；
+  \item verifier 是否容易计算；
+  \item 生成器是否能利用对称性、类型和不变量。
+\end{itemize}
+
+例如直接生成 Python 字符串搜索空间巨大且包含大量语法错误；在类型化 DSL 中生成可消除解析错误，但 DSL 可能排除真正有价值的算法。因此“约束表示”同时带来搜索效率和表达偏差。
+
+\section{Verifier 的证据光谱}
+
+\begin{center}
+\begin{tabularx}{0.96\textwidth}{>{\bfseries}lX X}
+\toprule
+证据 & 可以可靠支持 & 单独不能支持 \\
+\midrule
+proof assistant kernel & 固定形式 statement 可证明 & 自然语言翻译、原创性、工程性能 \\
+SAT/SMT unsat & 编码公式在求解域中无反例 & 编码忠实、域外或无限规模结论 \\
+小规模穷举 & 枚举范围内正确/存在反例 & 任意规模正确 \\
+随机测试 & 指定分布和预算下经验表现 & worst-case guarantee \\
+精确数值 evaluator & 当前实例目标值 & 跨实例/跨规模泛化 \\
+人工同行审查 & 意义、文献和论证质量 & 机械无误或完全可复现 \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+“自动 verifier”并不自动等于“形式 verifier”。它也可能只是运行一组测试、计算一个代理分数或调用数值模拟。
+
+\section{三个常见结论偷换}
+
+\paragraph{固定实例加速不等于渐近复杂度下降。}
+若在固定矩阵尺寸上减少标量乘法次数，得到的是该尺寸构造的改进。要声称矩阵乘法指数改进，还需一族可推广构造及其渐近分析。
+
+\paragraph{benchmark 最优不等于发现新算法。}
+候选可能与已知算法等价，只是变量重命名、操作重排或针对测试集调参。需要规范化、等价性检查和文献检索。
+
+\paragraph{kernel 接受不等于原题解决。}
+若 statement 漏掉条件、量词错位或结论被改弱，证明完全正确仍可能没有回答原题。
+
+\begin{warningbox}
+任何“首次”“更优复杂度”“已证明”“自动发现”的表述都应附上对象、比较基线、验证器、适用范围和证据来源。若这些字段写不出来，应先缩小 claim，而不是补强语气。
+\end{warningbox}
+
+\section{从兴趣到可证伪问题}
+
+“我想做 AI4Math”不是研究问题。可执行问题应包含对象、变量、对照和失败条件，例如：
+\begin{quote}
+在固定内存预算下，使用上一窗口频率预测重分配 Count-Min 宽度，能否在 Zipf 与分布漂移流上降低重尾 key 的 $95\%$ 分位绝对误差，同时在错误预测时不劣于经典 baseline 超过预设比例？
+\end{quote}
+这个问题明确了对象、预测接口、指标、数据分布、baseline 和 robustness 阈值；即使答案为否，也能产生反例和后续判断。
+
+\section{三个项目的定位}
+
+\begin{center}
+\begin{tabularx}{0.96\textwidth}{>{\bfseries}lX X}
+\toprule
+项目 & 训练的核心能力 & 最终可信边界 \\
+\midrule
+A 学习增强 Sketch & prediction interface、误差与鲁棒实验 & exact counter 对照 + 明确理论/经验边界 \\
+B 算法候选验证器 & 多层 verifier、反例、隐藏测试 & 有限正确性/经验泛化，不冒充复杂度证明 \\
+C Lean 形式化 & statement fidelity、lemma 分解、kernel proof & 固定 statement 的形式正确性 \\
+\bottomrule
+\end{tabularx}
+\end{center}
+三者共享 generator--verifier 思维，但交付不相同。一次只做一个，才能把失败分析做实。
+
+\begin{checkpointbox}
+\begin{enumerate}
+  \item 用自己的话区分 AI4Math、AI4TCS 与 TCS4AI；
+  \item 对一个代表工作填写六字段分析，不使用“模型更强”作答案；
+  \item 举例说明表示如何改变可搜索对象和等价重复；
+  \item 为 kernel、SMT、穷举和随机测试分别写出证据边界；
+  \item 把一个宽泛兴趣改写成含 baseline、指标和失败条件的问题。
+\end{enumerate}
+\end{checkpointbox}

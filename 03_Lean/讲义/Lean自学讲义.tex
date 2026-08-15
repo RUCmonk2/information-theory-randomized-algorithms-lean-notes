@@ -1,0 +1,162 @@
+\documentclass[UTF8,zihao=-4,oneside,fontset=fandol]{ctexrep}
+
+\usepackage[a4paper,margin=2.35cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools,bm}
+\usepackage{booktabs,tabularx,array,multirow}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{setspace}
+\usepackage{listings}
+\usepackage{tikz}
+\usepackage[most]{tcolorbox}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,calc}
+
+\definecolor{DeepBlue}{HTML}{1F4E79}
+\definecolor{DeepGreen}{HTML}{2E6B4F}
+\definecolor{WarmRed}{HTML}{A33A32}
+\definecolor{SoftGray}{HTML}{F4F5F6}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=DeepBlue,
+  urlcolor=DeepBlue,
+  citecolor=DeepGreen,
+  pdftitle={Lean 4 与 mathlib 自学讲义},
+  pdfauthor={RUCmonk2}
+}
+
+\setstretch{1.22}
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0.25em}
+\setlist{itemsep=0.25em,topsep=0.35em}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{Lean 4 与 mathlib 自学讲义}
+\fancyhead[R]{\leftmark}
+\fancyfoot[C]{\thepage}
+\setlength{\headheight}{14pt}
+
+\newtheorem{definition}{定义}[chapter]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{proposition}[definition]{命题}
+\newtheorem{lemma}[definition]{引理}
+\newtheorem{corollary}[definition]{推论}
+\theoremstyle{remark}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{说明}
+
+\newtcolorbox{intuitionbox}{
+  colback=DeepBlue!4,colframe=DeepBlue!70!black,
+  title=直觉,breakable,boxrule=0.7pt,arc=1mm
+}
+\newtcolorbox{warningbox}{
+  colback=WarmRed!4,colframe=WarmRed!75!black,
+  title=容易混淆,breakable,boxrule=0.7pt,arc=1mm
+}
+\newtcolorbox{aibox}{
+  colback=DeepGreen!4,colframe=DeepGreen!75!black,
+  title=与 AI4Math / AI4TCS 的连接,breakable,boxrule=0.7pt,arc=1mm
+}
+\newtcolorbox{checkpointbox}{
+  colback=SoftGray,colframe=black!50,
+  title=本章验收,breakable,boxrule=0.6pt,arc=1mm
+}
+
+\lstdefinelanguage{Lean}{
+  morekeywords={abbrev,axiom,by,class,def,deriving,do,else,end,example,
+    extends,for,forall,fun,if,import,inductive,instance,let,match,
+    namespace,open,opaque,partial,private,protected,return,structure,
+    theorem,then,universe,variable,where,with},
+  sensitive=true,
+  morecomment=[l]{--},
+  morecomment=[s]{/-}{-/},
+  morestring=[b]"
+}
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  columns=fullflexible,
+  frame=single,
+  rulecolor=\color{black!25},
+  backgroundcolor=\color{black!2},
+  xleftmargin=0.6em,
+  xrightmargin=0.6em,
+  showstringspaces=false,
+  language=Lean
+}
+
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\Nat}{\mathbb{N}}
+\newcommand{\PropT}{\mathsf{Prop}}
+\newcommand{\TypeT}{\mathsf{Type}}
+
+\title{\heiti Lean 4 与 mathlib 自学讲义\\[0.5em]
+\Large 从可执行定义、小型证明到可审计 verifier}
+\author{RUCmonk2}
+\date{2026 年 8 月}
+
+\begin{document}
+
+\hypersetup{pageanchor=false}
+\maketitle
+\hypersetup{pageanchor=true}
+
+\chapter*{如何使用这本讲义}
+\addcontentsline{toc}{chapter}{如何使用这本讲义}
+
+本讲义面向第一次系统学习 Lean 4、同时希望把它用于 AI4Math、AI4TCS 和随机算法形式化的读者。目标不是背 tactic，而是建立一条稳定链路：把自然语言命题写成精确类型，读懂 proof state，构造能被 kernel 检查的证明项，并诚实记录尚未形式化的语义与性能性质。
+
+建议每个例子都完成四次检查：
+\begin{enumerate}
+  \item 在纸上写出对象、假设和结论，不从 tactic 开始；
+  \item 用 \code{\#check} 确认关键表达式的类型；
+  \item 在固定 toolchain 的 Lake 项目中编译，而不只依赖编辑器提示；
+  \item 故意删掉一个假设或改错一个类型，观察 Lean 的错误信息如何变化。
+\end{enumerate}
+
+代码示例以 Lean 4 与 mathlib 的常见写法为主。mathlib API 会随版本演进，学习项目必须提交 \code{lean-toolchain} 与 Lake 配置；当示例和本机版本不一致时，应先检索当前版本的定义和定理，而不是盲目改到“没有红线”。
+
+\tableofcontents
+\clearpage
+
+\input{sections/01_环境_项目与内核模型.tex}
+\input{sections/02_表达式_定义与计算.tex}
+\input{sections/03_命题即类型与基础证明.tex}
+\input{sections/04_归纳类型_递归与归纳证明.tex}
+\input{sections/05_依赖类型_结构与等式.tex}
+\input{sections/06_mathlib检索_自动化与调试.tex}
+\input{sections/07_算法不变量与有限随机性.tex}
+\input{sections/08_AI4Math_AI4TCS证明工程.tex}
+\input{sections/09_习题与答案.tex}
+
+\begin{thebibliography}{9}
+\bibitem{tpil}
+Jeremy Avigad, Leonardo de Moura, Soonho Kong, and contributors.
+\newblock \emph{Theorem Proving in Lean 4}.
+\newblock \url{https://lean-lang.org/theorem_proving_in_lean4/}.
+
+\bibitem{fpl}
+David Thrane Christiansen.
+\newblock \emph{Functional Programming in Lean}.
+\newblock \url{https://lean-lang.org/functional_programming_in_lean/}.
+
+\bibitem{mil}
+Jeremy Avigad, Patrick Massot, and Floris van Doorn.
+\newblock \emph{Mathematics in Lean}.
+\newblock \url{https://leanprover-community.github.io/mathematics_in_lean/}.
+
+\bibitem{reference}
+The Lean Team.
+\newblock \emph{Lean Language Reference}.
+\newblock \url{https://lean-lang.org/doc/reference/latest/}.
+
+\bibitem{mathlib}
+The mathlib Community.
+\newblock \emph{mathlib4 Documentation}.
+\newblock \url{https://leanprover-community.github.io/mathlib4_docs/}.
+\end{thebibliography}
+
+\end{document}

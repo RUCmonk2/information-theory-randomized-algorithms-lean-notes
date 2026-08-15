@@ -1,0 +1,189 @@
+\chapter{项目 A：信息论与学习增强 Sketch}
+
+\section{问题定义必须先固定流模型}
+
+设 universe 为 $[N]$，频率向量 $f\in\mathbb{R}^N$ 由更新 $(i,\Delta)$ 隐式定义。至少区分：
+\begin{description}
+  \item[insertion-only] $\Delta\ge0$，频率只增加；
+  \item[strict turnstile] 允许负更新，但任意时刻 $f_i\ge0$；
+  \item[general turnstile] 中间和最终频率都可能为负。
+\end{description}
+Count-Min 的单侧估计依赖非负碰撞噪声，不能不加说明地迁移到 general turnstile。项目第一行就应声明模型、查询类型、passes 和 adversary 是否看到 hash seed。
+
+\section{经典 Count-Min baseline}
+
+选择 $d$ 个相互独立的通用哈希函数 $h_j:[N]\to[w]$，维护计数器
+\[
+C_{j,h_j(i)}\leftarrow C_{j,h_j(i)}+\Delta.
+\]
+点查询返回
+\[
+\widehat f_i=\min_{j\in[d]} C_{j,h_j(i)}.
+\]
+在 insertion-only 模型下始终有 $\widehat f_i\ge f_i$。标准参数量级
+\[
+w=\Theta(1/\varepsilon),\qquad
+d=\Theta(\log(1/\delta))
+\]
+给出对固定查询 $i$ 的高概率加性界
+\[
+\Prb[\widehat f_i>f_i+\varepsilon\lVert f\rVert_1]\le\delta,
+\]
+常数取决于具体参数化。学习增强方法必须与这个明确 baseline 比较，而不是只和 exact counter 比。
+
+\section{预测器到底输出什么}
+
+“有一个 prediction”不够。常见接口包括：
+\begin{enumerate}
+  \item 每个 key 的频率预测 $p_i\approx f_i$；
+  \item 归一化分布预测 $q_i\approx f_i/\lVert f\rVert_1$；
+  \item heavy-hitter 集合预测 $H\subseteq[N]$；
+  \item 上一窗口状态或分桶负载预测；
+  \item 查询分布预测，而不是数据频率预测。
+\end{enumerate}
+这些接口改变的目标不同。频率预测可能用于 sketch residual；heavy-hitter 预测用于分流；查询分布用于把资源给常查 key。必须写清预测在流开始前给定、在线更新，还是会看到部分真实流。
+
+\section{三种最小设计}
+
+\subsection{预测 heavy hitters 分流}
+
+对预测集合 $H$ 使用 exact counters，其余 key 进入 sketch。若错过一个真实 heavy hitter，它仍会污染 sketch。为了保留 fallback，可以让所有 key 同时进入 backup sketch：
+\begin{lstlisting}
+def update(item, delta):
+    backup_sketch.update(item, delta)
+    if item in predicted_heavy:
+        exact[item] += delta
+
+def query(item):
+    if item in predicted_heavy:
+        return exact[item]
+    return backup_sketch.query(item)
+\end{lstlisting}
+这在固定 backup 参数下不会比 baseline 更差，却额外使用 exact counter 内存。若总内存固定，就必须缩小 backup sketch，此时 robustness 需要重新测量或证明。
+
+\subsection{对 residual 做 sketch}
+
+维护预测 $p$ 与 residual $r=f-p$，查询时返回
+\[
+\widehat f_i=p_i+\widehat r_i.
+\]
+即使 $f_i,p_i\ge0$，$r_i$ 也可能为负，因此不能直接沿用 Count-Min 的非负噪声证明。可考虑 Count Sketch、正负 residual 分开或带显式截断的估计器；每种选择都改变偏差与方差。
+
+若 residual 范数 $\lVert f-p\rVert_1$ 明显小于 $\lVert f\rVert_1$，理论上有机会把误差尺度从全频率质量换成 residual 质量。但这需要严格证明所用 sketch 在当前更新模型上成立。
+
+\subsection{按预测负载分配宽度}
+
+预测分桶负载或 key 重要性后，给高风险区域更多计数器。优点是仍保留哈希结构；风险是自适应分配可能破坏原哈希独立性、mergeability 或 worst-case 界。最小实验应先把分配规则冻结，再生成流，避免使用测试流真值调宽度。
+
+\section{Prediction error 不能只选一个数字}
+
+若预测和真实频率都可归一化为分布 $p,q$，可考虑：
+\[
+\lVert p-q\rVert_1,
+\qquad
+\mathrm{TV}(p,q)=\frac12\lVert p-q\rVert_1,
+\qquad
+\KL(p\Vert q)=\sum_i p_i\log\frac{p_i}{q_i}.
+\]
+KL 对 $q_i=0<p_i$ 极敏感，需要平滑与方向说明。若预测目标是 heavy hitters，precision/recall、漏掉的频率质量
+\[
+\sum_{i\in H^*\setminus H} f_i
+\]
+往往比全分布 KL 更直接。若关心查询加权误差，还要引入查询分布。
+
+\begin{warningbox}
+先观察哪种误差指标与收益相关，再事后把它命名为 prediction error，会产生选择偏差。项目开始前应指定主误差指标和一个辅助指标；其他相关性只作为探索性结果。
+\end{warningbox}
+
+\section{Consistency 与 robustness}
+
+设经典 baseline 在预算 $M$ 下的损失为 $L_B(f;M)$，学习增强算法损失为 $L_A(f,p;M)$，预测误差为 $\eta(f,p)$。一种项目级定义是：
+\begin{description}
+  \item[consistency] 当 $\eta=0$ 或很小时，$L_A$ 显著优于 $L_B$；
+  \item[robustness] 对任意 $p$，$L_A(f,p;M)\le \beta L_B(f;M)+\gamma$；
+  \item[smoothness] 损失随 $\eta$ 逐渐恶化，而不是在小误差处突然崩溃。
+\end{description}
+这里 $L$、$\beta$、$\gamma$ 和预算必须具体化。若只能实验测得，就应写“经验 robustness”，不能称为一般性保证。
+
+一个理想形式可能是
+\[
+L_A(f,p;M)\le
+\min\{g(\eta(f,p),M),\ \beta L_B(f;M)+\gamma\},
+\]
+但能否证明取决于设计，不应先把目标公式当既成 theorem。
+
+\section{信息论视角怎样使用}
+
+预测 $P$ 可视为关于真实频率对象 $F$ 的 side information。互信息
+\[
+I(F;P)=H(F)-H(F\mid P)
+\]
+衡量平均不确定性减少；条件熵低意味着理想编码中描述 $F$ 所需额外信息更少。这提供研究语言，却不能直接推出某个 sketch 的空间上界。
+
+要把信息量转成算法 theorem，还需：
+\begin{enumerate}
+  \item 明确 $F,P$ 的随机模型与分布；
+  \item 指定算法能怎样访问 $P$；
+  \item 构造编码/通信协议或数据结构；
+  \item 证明恢复误差、失败概率和计算成本；
+  \item 给出 converse 或 baseline 才能讨论最优性。
+\end{enumerate}
+
+\section{实验数据与变量}
+
+最小数据生成器覆盖：
+\begin{itemize}
+  \item 均匀频率，检查预测机制是否无谓增加开销；
+  \item Zipf 重尾，观察 heavy hitter 分流；
+  \item burst，检查短期尖峰；
+  \item distribution drift，预测来自上一窗口；
+  \item adversarial miss，把最大 key 故意排除出预测集合；
+  \item general-turnstile toy，验证算法是否越过模型边界。
+\end{itemize}
+
+控制变量至少包括 $w,d$、总内存、流长度、universe、seed、预测误差强度和查询集合。所有方法必须使用同一计费口径：计数器位宽、预测存储、hash seed 和 metadata 都应计入空间。
+
+\section{Verifier 与输出表}
+
+Exact counter 给真值。对每个 key 记录
+\[
+e_i^{\mathrm{abs}}=|\widehat f_i-f_i|,
+\qquad
+e_i^{\mathrm{rel}}=\frac{|\widehat f_i-f_i|}{\max(1,|f_i|)}.
+\]
+不要只报平均值；至少报告 median、$95\%$/$99\%$ 分位、最大误差、heavy hitters 子集误差、空间和更新时间。
+
+\begin{center}
+\begin{tabularx}{0.96\textwidth}{YYYYYY}
+\toprule
+method & stream & pred. error & memory & p95 abs. & max abs. \\
+\midrule
+baseline & zipf & -- & 固定 & 数值 & 数值 \\
+augmented & zipf & 数值 & 固定 & 数值 & 数值 \\
+\bottomrule
+\end{tabularx}
+\end{center}
+每行还应由 run id 关联 seed、配置和原始结果；表中聚合值不能替代逐次运行记录。
+
+\section{Mergeability 检查}
+
+经典线性 sketch 常可合并：分别处理两个子流的状态相加，等于处理并流。加入预测后要问：两个分片是否使用同一预测、同一 heavy set 和同一哈希？预测模型参数是否属于状态？若各分片依据本地分布自适应分配内存，合并后的状态可能不再等价于全局运行。
+
+\section{两周停止条件}
+
+第 1 周完成 exact + Count-Min、数据生成器、固定内存计费和无预测基线；第 2 周只实现一种 prediction interface，做错误预测与漂移测试。出现以下任一条件就停止加模型：无法定义 prediction error、固定预算下没有收益、收益只来自泄漏真值、backup 被不公平缩小、或 mergeability/流模型已改变却没有声明。
+
+\begin{protocolbox}
+最低交付：一个无 GPU Python baseline、固定 schema 的 \code{summary.csv}、主误差曲线、空间计费表、至少一个“预测有害”的最小反例，以及一页说明哪些结论是经典 theorem、哪些只是本实验观察。
+\end{protocolbox}
+
+\begin{checkpointbox}
+\begin{enumerate}
+  \item 写清流模型、查询类型和 Count-Min baseline 保证；
+  \item 为频率、分布、heavy set 三种预测接口分别定义误差；
+  \item 解释 residual 为何可能破坏 Count-Min 单侧分析；
+  \item 在固定总内存下定义 consistency、robustness 和 smoothness；
+  \item 设计包含 drift 与 adversarial miss 的实验矩阵；
+  \item 检查加入预测后 mergeability 是否仍成立。
+\end{enumerate}
+\end{checkpointbox}

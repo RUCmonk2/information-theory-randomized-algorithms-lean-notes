@@ -1,0 +1,160 @@
+\chapter{算法不变量、有限随机性与证明分层}
+
+\section{先把随机性变成显式输入}
+
+普通程序常在函数内部调用随机数生成器，这不利于数学推理。形式化时可以把所有随机选择看成显式输入 $r$：
+\[
+\operatorname{run}:\mathrm{Input}\to\mathrm{RandomTape}\to\mathrm{Output}.
+\]
+固定 $r$ 后，\code{run x r} 是确定函数；概率来自对 random tape 的分布。这样可以把问题拆成两层：
+\begin{enumerate}
+  \item 对每条随机带证明状态安全、输出类型正确等确定性性质；
+  \item 对随机带集合计数或使用概率测度，证明成功事件占多大比例。
+\end{enumerate}
+
+\begin{intuitionbox}
+随机算法不是“不可预测的代码”，而是“确定程序加一个按指定分布采样的额外输入”。这个视角让执行语义与概率分析分离，也便于用有限枚举、Lean 和外部测试交叉验证。
+\end{intuitionbox}
+
+\section{状态机、不变量与后置条件}
+
+流算法可写成：
+\[
+s_0=\operatorname{init},\qquad
+s_{t+1}=\operatorname{step}(s_t,x_{t+1},r_{t+1}),\qquad
+y=\operatorname{query}(s_n).
+\]
+至少区分三类性质：
+\begin{description}
+  \item[表示不变量] 状态字段长度、索引、非负性和内部一致性；
+  \item[语义不变量] 状态和已处理输入前缀之间的关系；
+  \item[最终保证] 在终止或查询时由不变量推出输出正确性/误差界。
+\end{description}
+
+上一章的 \code{StreamState.Inv} 只保证列表长度不超过已见元素数，它是表示不变量，不说明保留的元素具有正确抽样分布。
+
+\begin{warningbox}
+“状态大小不超过 $k$”不是 reservoir sampling 正确性的全部。真正分布性结论是处理 $n$ 个元素后，每个元素以 $k/n$ 概率进入样本（在相应条件下），还需要形式化随机选择及其分布。
+\end{warningbox}
+
+\section{有限均匀样本空间}
+
+入门时可以绕开测度论，令有限类型 $\Omega$ 表示所有随机带，均匀概率定义为
+\[
+\Pr[E]=\frac{|\{\omega\in\Omega:E(\omega)\}|}{|\Omega|},
+\qquad |\Omega|>0.
+\]
+Lean 中可先定义事件计数：
+\begin{lstlisting}
+def eventCount [Fintype Omega]
+    (E : Omega -> Prop) [DecidablePred E] : Nat :=
+  (Finset.univ.filter E).card
+
+def uniformProb [Fintype Omega]
+    (E : Omega -> Prop) [DecidablePred E] : Rat :=
+  (eventCount E : Rat) / (Fintype.card Omega : Rat)
+\end{lstlisting}
+若 $\Omega$ 为空，分母为零，必须在定理假设中排除或改用带非空证明的样本空间结构。定义“能通过类型检查”不等于数学接口已完整。
+
+\section{indicator 与期望}
+
+事件 $E$ 的指示变量
+\[
+\mathbf{1}_E(\omega)=
+\begin{cases}
+1,&E(\omega),\\
+0,&\text{otherwise}
+\end{cases}
+\]
+满足 $\mathbb{E}[\mathbf{1}_E]=\Pr[E]$。有限均匀空间中，这一事实归结为：对所有 $\omega$ 求和时，每个满足 $E$ 的元素贡献 1，其余贡献 0，因此总和恰为事件基数。
+
+形式化路线可以拆成：
+\begin{enumerate}
+  \item 定义可判定事件和 indicator；
+  \item 证明 indicator 的有限和等于 filter 后的 card；
+  \item 除以非零的 $|\Omega|$；
+  \item 再把结果包装成期望/概率接口。
+\end{enumerate}
+这比直接挑战一般概率库中的积分定理更适合作为第一题。
+
+\section{有限 union bound 的计数骨架}
+
+对事件 $E_1,\ldots,E_m$，union bound 为
+\[
+\Pr\!\left[\bigcup_{i=1}^m E_i\right]
+\le \sum_{i=1}^m \Pr[E_i].
+\]
+有限均匀空间下只需证明集合基数不等式
+\[
+\left|\bigcup_i E_i\right|\le\sum_i |E_i|,
+\]
+再除以 $|\Omega|$。重叠元素在右边可能被重复计数，所以得到上界。Lean 实现时要选择 \code{Finset}、\code{Set} 或有限索引族，并处理 membership、decidability 与 coercion。
+
+\section{随机算法保证的六层拆分}
+
+\begin{center}
+\begin{tabularx}{0.96\textwidth}{>{\bfseries}lX X}
+\toprule
+层 & 典型命题 & 合适证据 \\
+\midrule
+接口 & 输入可解析、输出类型正确 & 类型检查、编译 \\
+状态安全 & 索引合法、不变量保持 & Lean 归纳定理 \\
+逐随机带正确性 & 对所有 $r$ 都满足确定性关系 & Lean theorem \\
+分布正确性 & random tape 确实服从所需分布 & 有限计数或概率库定理 \\
+概率保证 & 失败概率不超过 $\delta$ & 期望、尾界、union bound 的形式证明 \\
+资源保证 & 时间、空间、随机位成本 & 成本语义、复杂度证明或审计分析 \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+一个项目可以只形式化其中一部分，但必须标明其余层是测试、纸笔证明、外部假设还是完全未处理。
+
+\section{Count-Min 的分层形式化示例}
+
+Count-Min Sketch 的端到端结论可以先拆成：
+\begin{enumerate}
+  \item 数组更新保持所有计数器非负；
+  \item 目标项每行对应桶包含 $f_i$，所以逐行估计不小于 $f_i$；
+  \item 碰撞噪声是其他频率的加权和；
+  \item 通用哈希给出碰撞概率，推出噪声期望界；
+  \item Markov 与独立重复给出高概率误差界；
+  \item 最小值查询和参数 $w,d$ 合成最终 theorem。
+\end{enumerate}
+第一、二步基本不含概率，适合先做；后三步需要哈希族和有限概率接口。完整形式化不是“一条巨大 theorem”，而是一条依赖图。
+
+\section{实现与规范的连接}
+
+Lean 中容易证明的纯函数可能与 Python/C++ 高性能实现不同。至少有三种连接策略：
+\begin{enumerate}
+  \item 以 Lean 定义为可执行 reference implementation，外部实现做 differential testing；
+  \item 为外部语言建立语义模型，再证明实现 refinement；
+  \item 只证明抽象算法 theorem，同时明确工程实现尚未形式化。
+\end{enumerate}
+第一种最适合个人学习项目。它不能自动证明外部实现正确，但能给测试提供可信 oracle。
+
+\begin{aibox}
+AI 生成的随机算法候选应先通过分层 verifier：接口检查、小规模枚举、hidden random tests、确定性不变量证明、概率保证审查和复杂度审查。Lean 最适合其中可精确定义的层，不应被当作覆盖所有研究判断的万能标签。
+\end{aibox}
+
+\section{建议的第一个随机算法形式化题}
+
+选择如下梯度：
+\begin{enumerate}
+  \item 有限集合上 indicator 的和等于事件基数；
+  \item 均匀概率总和为 1（显式假设样本空间非空）；
+  \item 两个或有限多个事件的 union bound；
+  \item 一个抽样状态的大小不变量；
+  \item 简化抽样器的无偏性；
+  \item 最后才进入完整 reservoir sampling、Chernoff 或 Count-Min。
+\end{enumerate}
+
+\begin{checkpointbox}
+\begin{enumerate}
+  \item 把随机算法写成输入和 random tape 上的确定函数；
+  \item 区分表示不变量、语义不变量和分布正确性；
+  \item 在有限均匀空间中推导 indicator 期望等于事件概率；
+  \item 写出 union bound 的集合计数证明骨架；
+  \item 把 Count-Min 端到端保证拆成至少五条 lemma；
+  \item 为一个只完成部分形式化的项目写清证据边界。
+\end{enumerate}
+\end{checkpointbox}
