@@ -1,0 +1,151 @@
+\documentclass[UTF8,zihao=-4,oneside,fontset=fandol]{ctexrep}
+
+\usepackage[a4paper,margin=2.35cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools,bm}
+\usepackage{booktabs,tabularx,array,multirow}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{setspace}
+\usepackage{listings}
+\usepackage{tikz}
+\usepackage[most]{tcolorbox}
+\usetikzlibrary{arrows.meta,positioning,matrix,calc}
+
+\definecolor{DeepBlue}{HTML}{1F4E79}
+\definecolor{DeepGreen}{HTML}{2E6B4F}
+\definecolor{WarmRed}{HTML}{A33A32}
+\definecolor{SoftGray}{HTML}{F4F5F6}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=DeepBlue,
+  urlcolor=DeepBlue,
+  citecolor=DeepGreen,
+  pdftitle={随机算法自学讲义},
+  pdfauthor={RUCmonk2}
+}
+
+\setstretch{1.22}
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0.25em}
+\setlist{itemsep=0.25em,topsep=0.35em}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{随机算法自学讲义}
+\fancyhead[R]{\leftmark}
+\fancyfoot[C]{\thepage}
+\setlength{\headheight}{14pt}
+
+\newtheorem{definition}{定义}[chapter]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{proposition}[definition]{命题}
+\newtheorem{lemma}[definition]{引理}
+\newtheorem{corollary}[definition]{推论}
+\theoremstyle{remark}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{说明}
+
+\newtcolorbox{intuitionbox}{
+  colback=DeepBlue!4,colframe=DeepBlue!70!black,
+  title=直觉,breakable,boxrule=0.7pt,arc=1mm
+}
+\newtcolorbox{warningbox}{
+  colback=WarmRed!4,colframe=WarmRed!75!black,
+  title=容易混淆,breakable,boxrule=0.7pt,arc=1mm
+}
+\newtcolorbox{aibox}{
+  colback=DeepGreen!4,colframe=DeepGreen!75!black,
+  title=与 AI4TCS / Lean 的连接,breakable,boxrule=0.7pt,arc=1mm
+}
+\newtcolorbox{checkpointbox}{
+  colback=SoftGray,colframe=black!50,
+  title=本节验收,breakable,boxrule=0.6pt,arc=1mm
+}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  columns=fullflexible,
+  frame=single,
+  rulecolor=\color{black!25},
+  backgroundcolor=\color{black!2},
+  xleftmargin=0.6em,
+  xrightmargin=0.6em,
+  showstringspaces=false,
+  language=Python
+}
+
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\operatorname{Var}}
+\newcommand{\Cov}{\operatorname{Cov}}
+\newcommand{\Prb}{\mathbb{P}}
+\newcommand{\ind}{\mathbf{1}}
+\newcommand{\poly}{\operatorname{poly}}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+\title{\heiti 随机算法自学讲义\\[0.5em]
+\Large 从概率界、经典算法到数据流 Sketch 与可验证搜索}
+\author{RUCmonk2}
+\date{2026 年 8 月}
+
+\begin{document}
+
+\hypersetup{pageanchor=false}
+\maketitle
+\hypersetup{pageanchor=true}
+
+\chapter*{如何使用这本讲义}
+\addcontentsline{toc}{chapter}{如何使用这本讲义}
+
+随机算法不是“跑几次看看”。一个完整分析必须同时说明随机源、成功事件、失败概率、时间/空间成本以及失败时的处理方式。本讲义以有限概率空间和离散算法为主，重点连接数据流 Sketch、随机验证器和 AI4TCS。
+
+学习每个算法时固定填写：
+\begin{center}
+\begin{tabularx}{0.94\textwidth}{>{\bfseries}lX}
+\toprule
+输入与随机源 & 哪些选择是随机的，需要几阶独立或完全独立？\\
+输出与成功事件 & 输出对象是什么，何时判定成功？\\
+误差与概率 & 是单侧/双侧误差，失败概率怎样依赖参数？\\
+资源 & 时间、空间、passes、communication 分别是多少？\\
+失败处理 & 重复、取中位数、回退到确定性基线还是允许失败？\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\tableofcontents
+\clearpage
+
+\input{sections/01_概率工具与集中不等式.tex}
+\input{sections/02_随机化范式与经典案例.tex}
+\input{sections/03_抽样_哈希与随机置换.tex}
+\input{sections/04_数据流Sketch.tex}
+\input{sections/05_随机游走_概率方法与舍入.tex}
+\input{sections/06_AI4TCS验证与实验.tex}
+\input{sections/07_习题与答案.tex}
+
+\begin{thebibliography}{9}
+\bibitem{motwani-raghavan}
+Rajeev Motwani and Prabhakar Raghavan.
+\newblock \emph{Randomized Algorithms}.
+\newblock Cambridge University Press, 1995.
+
+\bibitem{mitzenmacher-upfal}
+Michael Mitzenmacher and Eli Upfal.
+\newblock \emph{Probability and Computing}, 2nd edition.
+\newblock Cambridge University Press, 2017.
+
+\bibitem{dubhashi-panconesi}
+Devdatt Dubhashi and Alessandro Panconesi.
+\newblock \emph{Concentration of Measure for the Analysis of Randomized Algorithms}.
+\newblock Cambridge University Press, 2009.
+
+\bibitem{cormode-yi}
+Graham Cormode and Ke Yi.
+\newblock \emph{Small Summaries for Big Data}.
+\newblock Cambridge University Press, 2020.
+\end{thebibliography}
+
+\end{document}

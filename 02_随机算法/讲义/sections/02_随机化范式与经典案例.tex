@@ -1,0 +1,124 @@
+\chapter{随机化范式与经典案例}
+
+\section{Monte Carlo 与 Las Vegas}
+
+\begin{definition}[Monte Carlo 算法]
+运行时间有确定上界或高概率上界，但输出允许以小概率错误。通常通过独立重复降低错误概率。
+\end{definition}
+
+\begin{definition}[Las Vegas 算法]
+只要终止，输出总是正确；运行时间是随机变量，通常分析其期望或尾部。
+\end{definition}
+
+二者可以互相转换一部分：若 Monte Carlo 输出可被确定性 verifier 检查，就可以反复生成直到通过，得到 Las Vegas 过程；但若 verifier 只能发现部分错误，这个转换不成立。
+
+\begin{center}
+\begin{tabularx}{\textwidth}{lXX}
+\toprule
+类型 & 正确性 & 主要随机量\\
+\midrule
+Monte Carlo & 允许小概率错误 & 输出是否正确\\
+Las Vegas & 输出始终正确 & 运行时间/重试次数\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\section{随机快速排序}
+
+随机快速排序从当前子数组中均匀选择 pivot，再递归排序两侧。无论 pivot 如何选择，最终结果都正确，因此它是 Las Vegas 算法；随机性只影响比较次数。
+
+设输入元素互异，排序后为 $z_1<\cdots<z_n$。令 $X_{ij}$ 表示 $z_i,z_j$ 是否被直接比较。两者会比较，当且仅当集合
+\[
+\{z_i,z_{i+1},\dots,z_j\}
+\]
+中第一个被选为 pivot 的元素是 $z_i$ 或 $z_j$，所以
+\[
+\Prb[X_{ij}=1]=\frac{2}{j-i+1}.
+\]
+总比较次数 $X=\sum_{i<j}X_{ij}$，由期望线性性
+\begin{align*}
+\E X
+&=\sum_{i<j}\frac{2}{j-i+1}\\
+&=2\sum_{k=2}^n\frac{n-k+1}{k}\\
+&=2(n+1)H_n-4n
+=O(n\log n).
+\end{align*}
+
+\begin{intuitionbox}
+分析没有追踪递归树的所有相关性，而是改问每一对元素是否比较。指示变量让复杂的全局过程变成可加的局部事件。
+\end{intuitionbox}
+
+\section{Freivalds 矩阵乘积验证}
+
+给定 $n\times n$ 矩阵 $A,B,C$，要验证 $AB=C$。直接计算矩阵乘积需要 $O(n^3)$ 标准算术操作。Freivalds 算法随机取 $r\in\{0,1\}^n$，检查
+\[
+A(Br)=Cr.
+\]
+矩阵向量乘法只需 $O(n^2)$。
+
+\begin{lstlisting}
+def freivalds(A, B, C, trials):
+    for _ in range(trials):
+        r = random_bit_vector(n)
+        if A @ (B @ r) != C @ r:
+            return False
+    return True
+\end{lstlisting}
+
+若 $AB=C$，检查必然通过，所以没有 false negative。若 $D=AB-C\ne0$，至少有一行向量 $d\ne0$。取 $d$ 的某个非零坐标 $j$；固定 $r$ 的其他坐标后，方程 $d^Tr=0$ 对 $r_j\in\{0,1\}$ 至多有一个选择成立，因此
+\[
+\Prb[Dr=0]\le\frac12.
+\]
+独立重复 $k$ 次，错误接受概率至多 $2^{-k}$。
+
+\begin{warningbox}
+结论依赖运算所在的环/域和等号检查方式。浮点矩阵的近似相等需要单独定义容差与数值稳定性，不能直接照搬精确代数证明。
+\end{warningbox}
+
+\begin{aibox}
+Freivalds 算法是 verifier-guided algorithm discovery 的理想入门案例：候选 $C$ 可由模型或程序生成，随机 verifier 快速拒绝错误候选，最终高价值候选再做精确计算或形式证明。随机检查降低成本，但没有取代最终证书。
+\end{aibox}
+
+\section{Karger 随机收缩最小割}
+
+对无向多重图，重复随机选择一条边并收缩其两个端点，删除自环但保留平行边，直到只剩两个超级节点；跨越两节点的边即为候选割。
+
+固定一个大小为 $k$ 的最小割。只要尚未收缩这条割上的边，它就仍然存在。若当前有 $r$ 个超级节点，因为每个节点度至少为 $k$，边数至少为 $rk/2$。随机边落在固定最小割上的概率至多
+\[
+\frac{k}{rk/2}=\frac2r.
+\]
+因此从 $n$ 个节点一路保护该最小割到 2 个节点的概率至少
+\begin{align*}
+\prod_{r=3}^{n}\left(1-\frac2r\right)
+&=\prod_{r=3}^{n}\frac{r-2}{r}\\
+&=\frac{2}{n(n-1)}.
+\end{align*}
+单次成功率虽低，但独立重复 $T$ 次后，全失败概率至多
+\[
+\left(1-\frac{2}{n(n-1)}\right)^T
+\le\exp\left(-\frac{2T}{n(n-1)}\right).
+\]
+取 $T=\Theta(n^2\log(1/\delta))$ 可把失败概率降到 $\delta$。
+
+\section{随机化改变了什么}
+
+三个案例分别体现不同作用：
+\begin{itemize}
+  \item 快速排序：随机化避免固定输入触发总是糟糕的 pivot，输出仍确定正确；
+  \item Freivalds：随机化把昂贵精确验证换成快速单侧错误验证；
+  \item Karger：随机化在巨大组合空间中采样一个结构，靠重复提高找到最优解的概率。
+\end{itemize}
+
+分析时必须明确随机性来自输入分布还是算法内部。随机快速排序的期望界对任意固定输入成立，随机性来自 pivot；这与假设输入本身随机排列是不同模型。
+
+\section{小结与验收}
+
+\begin{checkpointbox}
+\begin{enumerate}
+  \item 判断随机快速排序属于 Monte Carlo 还是 Las Vegas，并说明原因；
+  \item 推导一对排序后相距 $k-1$ 的元素被比较的概率；
+  \item 写出 Freivalds 的单侧错误事件并推导 $k$ 次后的错误概率；
+  \item 推导 Karger 算法中当前有 $r$ 个超级节点时误收缩固定最小割的概率上界；
+  \item 对三个案例分别写出随机源、成功事件、资源和放大方式。
+\end{enumerate}
+\end{checkpointbox}

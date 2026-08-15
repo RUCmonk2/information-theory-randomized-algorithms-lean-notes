@@ -1,0 +1,149 @@
+\chapter{随机编码与可靠通信}
+
+本章解释信道编码定理的两半：为什么低于容量的速率存在可靠码，以及为什么高于容量不可能可靠通信。核心工具分别是随机码本与典型性、Fano 不等式与数据处理。
+
+\section{联合典型性}
+
+对输入分布 $p_X$ 和信道 $W(y|x)$，联合分布为 $p_{XY}(x,y)=p_X(x)W(y|x)$。长度 $n$ 的序列对 $(x^n,y^n)$ 若其经验信息量接近相应熵，称为联合典型。
+
+本章只使用联合典型性的三个性质：
+\begin{enumerate}
+  \item 若 $X^n\sim p_X^n$ 且 $Y^n\sim W^n(\cdot|X^n)$，则 $(X^n,Y^n)$ 以趋于 1 的概率联合典型；
+  \item 若 $\widetilde X^n\sim p_X^n$ 与 $Y^n\sim p_Y^n$ 独立，则
+  \[
+  \Prb[(\widetilde X^n,Y^n)\text{ 联合典型}]
+  \lesssim 2^{-n(I(X;Y)-\delta(\epsilon))};
+  \]
+  \item 典型序列的概率和集合大小都具有指数阶控制。
+\end{enumerate}
+第二条最关键：一个与输出无关的错误码字，伪装成“与输出匹配”的概率约为 $2^{-nI(X;Y)}$。
+
+\section{随机码本与典型译码}
+
+固定输入分布 $p_X$ 和码率 $R$，令 $M=2^{nR}$。随机生成码本：对每个消息 $m\in\{1,\dots,M\}$，独立采样
+\[
+X^n(m)\sim\prod_{i=1}^np_X(x_i).
+\]
+发送消息 $m$ 时把 $X^n(m)$ 输入信道。解码器观察 $Y^n$ 后，寻找唯一满足 $(X^n(\hat m),Y^n)$ 联合典型的码字；若不存在或不唯一则报错。
+
+由于码本生成和信道都对消息编号对称，可以假设发送消息 1。定义错误事件：
+\begin{align*}
+E_0&=\{(X^n(1),Y^n)\text{ 不联合典型}\},\\
+E_m&=\{(X^n(m),Y^n)\text{ 联合典型}\},\quad m\ne1.
+\end{align*}
+整体错误包含于
+\[
+E_0\cup\bigcup_{m=2}^ME_m.
+\]
+
+\section{Union bound 给出的速率条件}
+
+由联合典型性，$\Prb(E_0)\to0$。对于每个错误码字，由于 $X^n(m)$ 与实际输出 $Y^n$ 独立，
+\[
+\Prb(E_m)\lesssim2^{-n(I(X;Y)-\delta)}.
+\]
+使用 union bound：
+\begin{align*}
+\Prb[\text{error}]
+&\le\Prb(E_0)+\sum_{m=2}^M\Prb(E_m)\\
+&\lesssim\Prb(E_0)+2^{nR}2^{-n(I(X;Y)-\delta)}\\
+&=\Prb(E_0)+2^{-n(I(X;Y)-R-\delta)}.
+\end{align*}
+只要
+\[
+R<I(X;Y)-\delta,
+\]
+平均错误概率就趋于 0。再对输入分布优化，得到所有 $R<C=\max_{p_X}I(X;Y)$ 都可达。
+
+\begin{theorem}[信道编码定理：可达性]
+对离散无记忆信道，任意 $R<C$ 都存在一列 $(n,2^{nR})$ 码，使平均错误概率随 $n\to\infty$ 趋于 0。
+\end{theorem}
+
+\section{为什么随机证明能推出确定码存在}
+
+上面的错误概率同时对随机码本、随机消息和随机信道噪声取平均。若所有确定码本的错误概率都大于某个数，随机选择后的平均也会大于该数。反过来，随机码本平均错误概率很小，必然至少存在一个确定码本不超过这个平均值。
+
+\begin{intuitionbox}
+随机编码是概率方法：随机性主要服务于存在性证明。证明结束后，可以固定一个表现良好的码本。它没有自动告诉我们如何高效找到、存储或解码这个码本。
+\end{intuitionbox}
+
+若要从平均错误转成最大错误，还需删除错误概率最差的一部分码字（expurgation）或使用更细分析。论文中必须明确采用哪种错误口径。
+
+\section{Fano 不等式}
+
+\begin{theorem}[Fano 不等式]
+设消息 $J$ 取 $M$ 个值，估计为 $\hat J$，错误概率 $P_e=\Prb[\hat J\ne J]$，则
+\[
+H(J|\hat J)\le h_2(P_e)+P_e\log_2(M-1)
+\le1+P_e\log_2M.
+\]
+\end{theorem}
+
+\begin{proof}[证明骨架]
+令错误指示变量 $E=\ind\{J\ne\hat J\}$。一方面，
+\[
+H(E,J|\hat J)=H(J|\hat J)+H(E|J,\hat J)=H(J|\hat J),
+\]
+因为 $E$ 由 $(J,\hat J)$ 决定。另一方面，
+\[
+H(E,J|\hat J)=H(E|\hat J)+H(J|E,\hat J).
+\]
+第一项至多 $h_2(P_e)$；当 $E=0$ 时 $J$ 已知，当 $E=1$ 时至多剩 $M-1$ 种可能，所以第二项至多 $P_e\log_2(M-1)$。
+\end{proof}
+
+Fano 不等式把“低错误率”转换为“小条件熵”：如果几乎总能从观察中恢复消息，那么观察后关于消息剩余的不确定性必须很小。
+
+\section{信道编码逆定理}
+
+设消息 $J$ 均匀分布，因此 $H(J)=\log_2M=nR$。编码和信道形成 Markov 链
+\[
+J\to X^n\to Y^n\to\hat J.
+\]
+由熵分解与 Fano 不等式：
+\begin{align*}
+nR
+&=I(J;Y^n)+H(J|Y^n)\\
+&\le I(X^n;Y^n)+1+P_enR.
+\end{align*}
+对无记忆信道，链式法则和容量定义给出
+\[
+I(X^n;Y^n)\le\sum_{i=1}^nI(X_i;Y_i)\le nC.
+\]
+因此
+\[
+R\le C+\frac1n+P_eR.
+\]
+若 $P_e\to0$ 且 $n\to\infty$，必有 $R\le C$。
+
+\begin{theorem}[信道编码定理：逆定理]
+若存在一列码使错误概率趋于 0，则其渐近码率不超过容量 $C$。
+\end{theorem}
+
+\section{存在性、构造性与有限块长}
+
+信道编码定理是渐近结果，不能直接回答有限 $n$ 的工程问题。实际还要考虑：
+\begin{itemize}
+  \item 码本构造和存储成本；
+  \item 编码、解码复杂度与延迟；
+  \item 有限块长下的错误概率；
+  \item 平均错误与最大错误；
+  \item 信道模型失配和输入成本约束。
+\end{itemize}
+现代编码理论中的线性码、LDPC、polar code 等，正是在可靠性、码率和计算效率之间寻找可构造方案。
+
+\begin{warningbox}
+“随机搜索找到一个在测试集上正确的程序”和随机编码定理不是同一件事。后者有明确的概率空间、错误事件、指数规模码本和渐近证明；前者若没有隐藏测试、分布假设与理论分析，只是经验结果。
+\end{warningbox}
+
+\section{小结与验收}
+
+\begin{checkpointbox}
+\begin{enumerate}
+  \item 画出随机码本、信道、典型译码的完整流程；
+  \item 写出 $E_0$ 与 $E_m$，说明它们为何具有不同概率界；
+  \item 从 union bound 推出条件 $R<I(X;Y)$；
+  \item 复述 Fano 不等式证明中错误指示变量的作用；
+  \item 解释“随机码本平均表现好”为什么能推出至少一个确定码本存在；
+  \item 列出信道编码定理没有解决的三个有限块长问题。
+\end{enumerate}
+\end{checkpointbox}

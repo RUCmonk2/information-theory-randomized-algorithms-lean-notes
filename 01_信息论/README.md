@@ -1,5 +1,12 @@
 # 信息论学习路线
 
+## 完整讲义入口
+
+- [信息论自学讲义 PDF](讲义/信息论自学讲义.pdf)
+- [LaTeX 源码与章节索引](讲义/README.md)
+
+原有三个 Markdown 文件现在承担预习、进度和检索功能。定义、证明、例题、习题与答案以完整讲义为主。
+
 ## 学习目标
 
 信息论部分重点不是背公式，而是掌握三个视角：
@@ -10,11 +17,12 @@
 
 ## 学习顺序
 
-1. 概率复习：联合分布、条件分布、期望、方差和大数定律；
-2. 信息量与熵：self-information、entropy、conditional entropy、mutual information；
-3. KL 散度与不等式：非负性、链式法则、data processing intuition；
-4. 编码与信道：Huffman、Shannon source coding、channel capacity 和随机编码；
-5. 与当前研究连接：Sketch 的误差、预测信息、通信复杂度和 learning-augmented 算法。
+1. 讲义第 1 章：概率、自信息、熵和二元熵；
+2. 讲义第 2 章：联合/条件熵、KL、互信息和数据处理；
+3. 讲义第 3 章：前缀码、Kraft、Huffman、AEP 和信源编码定理；
+4. 讲义第 4--5 章：DMC、BSC/BEC、容量、随机编码与 Fano 逆定理；
+5. 讲义第 6 章：Sketch、通信复杂度、side information 和 verifier feedback；
+6. 讲义第 7 章：综合习题与参考答案。
 
 ## 每一章必须留下什么
 

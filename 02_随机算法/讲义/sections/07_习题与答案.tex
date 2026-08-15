@@ -1,0 +1,66 @@
+\chapter{综合习题与参考答案}
+
+\section{习题}
+
+\begin{enumerate}[label=\textbf{R\arabic*.}]
+  \item 把 $n$ 个球独立放入 $n$ 个桶，使用指示变量计算碰撞球对数的期望。
+  \item 设 $X$ 非负且 $\E X=10$。分别用 Markov 界估计 $\Prb[X\ge50]$；若另知 $\Var(X)=16$，用 Chebyshev 估计 $\Prb[|X-10|\ge40]$。
+  \item 需要估计 Bernoulli 均值到加性误差 $0.02$，失败概率至多 $0.01$。用 Hoeffding 给出充分样本量。
+  \item 推导随机快速排序中 $z_i,z_j$ 被比较的概率，并由此说明期望比较次数为 $O(n\log n)$。
+  \item Freivalds 算法独立运行多少次可把错误接受概率降到 $10^{-9}$ 以下？
+  \item 对 $n=20$ 的图，Karger 单次保留某个固定最小割的概率下界是多少？要把针对该固定割的失败概率降到 $0.01$，给出重复次数上界。
+  \item 证明大小为 1 的 reservoir sampling 在处理第 $t$ 个元素后均匀保留每个历史元素。
+  \item 对线性二进制哈希 $h_A(x)=Ax$，说明为什么 $x\ne y$ 时碰撞概率为 $2^{-b}$。
+  \item 设 Count-Min 使用 $w=\lceil e/\epsilon\rceil$。从碰撞噪声期望出发推导单行失败概率 $1/e$。
+  \item 展开 AMS 估计 $Z^2$，说明为什么 2-wise independence 足以保证无偏，而控制方差需要 4-wise independence。
+  \item 对一个三角形加一条悬挂边的无向图，写出普通随机游走的平稳分布，并解释为什么不是均匀分布。
+  \item 设计一个候选矩阵乘法程序的四层 verifier，区分随机筛选、精确正确性、运行性能和原创性检查。
+\end{enumerate}
+
+\section{参考答案与提示}
+
+\paragraph{R1.}
+对每对球 $i<j$，令 $I_{ij}$ 表示它们落入同一桶，概率为 $1/n$。碰撞球对总数 $X=\sum_{i<j}I_{ij}$，所以
+\[
+\E X=\binom n2\frac1n=\frac{n-1}{2}.
+\]
+
+\paragraph{R2.}
+Markov 给出 $10/50=0.2$。Chebyshev 给出 $16/40^2=0.01$。后者使用更多分布信息，但事件也写成围绕均值的双侧偏差。
+
+\paragraph{R3.}
+Hoeffding 给出 $2e^{-2n(0.02)^2}\le0.01$，因此
+\[
+n\ge\frac{ln200}{2(0.02)^2}\approx6623.
+\]
+取整数上整。
+
+\paragraph{R4.}
+区间 $\{z_i,\dots,z_j\}$ 中第一个 pivot 必须是两个端点之一，概率为 $2/(j-i+1)$。对所有 $i<j$ 求和得到 $2(n+1)H_n-4n$。
+
+\paragraph{R5.}
+需要 $2^{-k}<10^{-9}$，即 $k>9\log_2 10\approx29.9$，所以 $k=30$ 足够。
+
+\paragraph{R6.}
+单次下界为 $2/(20\cdot19)=1/190$。重复 $T$ 次全失败概率至多 $e^{-T/190}$；令其不超过 $0.01$，可取 $T\ge190\ln100\approx875$。
+
+\paragraph{R7.}
+新元素以 $1/t$ 进入；旧元素以 $1/(t-1)$ 留到上一步，再以 $1-1/t$ 不被替换，乘积同样为 $1/t$。
+
+\paragraph{R8.}
+令 $v=x-y\ne0$。随机矩阵每一行与 $v$ 的内积是均匀比特；$b$ 行同时为 0 的概率为 $2^{-b}$。
+
+\paragraph{R9.}
+一行噪声 $Z$ 的期望至多 $\|f\|_1/w\le\epsilon\|f\|_1/e$。Markov 给出
+\[
+\Prb[Z\ge\epsilon\|f\|_1]\le1/e.
+\]
+
+\paragraph{R10.}
+二次展开只出现 $s_i$ 和 $s_is_j$，两两独立使交叉项期望为 0。方差涉及 $Z^4$，需要控制四个符号的乘积，因此使用 4-wise independence。
+
+\paragraph{R11.}
+三角形上与悬挂边相连的顶点度为 3，另外两个三角形顶点度为 2，悬挂顶点度为 1。总度数为 8，所以平稳概率分别为 $3/8,2/8,2/8,1/8$。
+
+\paragraph{R12.}
+接口层检查 shape/dtype；小规模层精确计算 $AB$；大规模筛选运行多次 Freivalds；最终正确性层做精确或符号验证；性能单独报告时间/空间；原创性还需等价变换去重、文献检索和复杂度分析。

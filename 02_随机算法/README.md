@@ -1,16 +1,25 @@
 # 随机算法学习路线
 
+## 完整讲义入口
+
+- [随机算法自学讲义 PDF](讲义/随机算法自学讲义.pdf)
+- [LaTeX 源码与章节索引](讲义/README.md)
+
+原有三个 Markdown 文件现在承担预习、实验入口和检索功能。完整算法、概率证明、例题、习题与答案以讲义为主。
+
 ## 学习目标
 
 随机算法的核心能力是把随机性写进算法协议，并精确回答：随机源是什么、正确性事件是什么、失败概率多大、成本是多少、失败时如何恢复。
 
 ## 学习顺序
 
-1. 概率工具：union bound、linearity of expectation、Markov、Chebyshev、Chernoff/Hoeffding；
-2. 随机化范式：Monte Carlo、Las Vegas、randomized rounding、sampling、hashing；
-3. 数据流算法：reservoir sampling、Count-Min、Count Sketch、AMS/F2、mergeability；
-4. 随机图和 Markov chain：只在前面稳定后进入；
-5. AI4TCS verifier：随机测试、property testing、反例生成、搜索反馈和跨规模验收。
+1. 讲义第 1 章：指示变量、union bound、Markov/Chebyshev、Chernoff/Hoeffding 和概率放大；
+2. 讲义第 2 章：Monte Carlo/Las Vegas、随机快速排序、Freivalds 和 Karger；
+3. 讲义第 3 章：Bernoulli/reservoir sampling、Fisher--Yates、通用哈希和随机位成本；
+4. 讲义第 4 章：Count-Min、Count Sketch、AMS/F2 和 mergeability；
+5. 讲义第 5 章：概率方法、条件期望、随机舍入、Markov 链和随机游走；
+6. 讲义第 6 章：AI4TCS verifier、随机测试、property testing 和 Lean/SMT 分工；
+7. 讲义第 7 章：综合习题与参考答案。
 
 ## 算法分析表
 

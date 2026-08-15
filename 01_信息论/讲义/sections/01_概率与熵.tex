@@ -1,0 +1,166 @@
+\chapter{概率、信息量与熵}
+
+\section{这一章回答什么}
+
+信息论首先要回答一个看似简单的问题：一个随机结果出现时，我们“获得了多少信息”？回答这个问题前，必须先把随机对象、分布和平均方式写清楚。本章集中处理单个离散随机变量，目标是建立后续所有公式的共同语言。
+
+\section{有限概率空间与随机变量}
+
+设样本空间为有限集合 $\Omega$，概率函数 $\Prb$ 满足
+\[
+\Prb(\omega)\ge 0,
+\qquad
+\sum_{\omega\in\Omega}\Prb(\omega)=1.
+\]
+随机变量 $X:\Omega\to\mathcal X$ 把基本结果映射到字母表 $\mathcal X$。它的概率质量函数为
+\[
+p_X(x)=\Prb[X=x].
+\]
+
+对任意函数 $f$，期望定义为
+\[
+\E[f(X)]=\sum_{x\in\mathcal X}p_X(x)f(x).
+\]
+方差衡量围绕均值的平方波动：
+\[
+\Var(X)=\E[(X-\E X)^2]=\E[X^2]-(\E X)^2.
+\]
+
+\begin{example}[Bernoulli 随机变量]
+若 $X\sim\mathrm{Bernoulli}(p)$，则
+\[
+\Prb[X=1]=p,\qquad \Prb[X=0]=1-p,
+\]
+并且 $\E X=p$、$\Var(X)=p(1-p)$。同一个取值 $X=1$ 在不同 $p$ 下有不同的意外程度；信息量因此必须依赖分布，而不能只依赖符号本身。
+\end{example}
+
+\section{从意外程度到自信息}
+
+如果事件发生概率为 $p$，希望它的信息量 $i(p)$ 满足：
+\begin{enumerate}
+  \item 概率越小，信息量越大；
+  \item 必然事件的信息量为 $0$；
+  \item 独立事件同时发生时，信息量相加，即 $i(pq)=i(p)+i(q)$；
+  \item $i(p)$ 随 $p$ 连续变化。
+\end{enumerate}
+这些条件把函数确定为对数形式。
+
+\begin{definition}[自信息]
+事件 $X=x$ 的自信息定义为
+\[
+\imath_X(x)=-\log_2 p_X(x).
+\]
+当 $p_X(x)=0$ 时，该取值不会被实际观测；求和中采用约定 $0\log 0=0$。
+\end{definition}
+
+若 $p_X(x)=1/2$，观测它得到 $1$ bit；若概率为 $1/8$，得到 $3$ bits。这里的 bit 是信息单位，不是变量在计算机中实际占用的位数。
+
+\begin{warningbox}
+自信息描述“在给定分布模型下，一个结果有多意外”。它不等于语义重要性。一个极小概率的乱码可能有很高自信息，但对研究问题没有任何价值。
+\end{warningbox}
+
+\section{熵：平均自信息}
+
+\begin{definition}[Shannon 熵]
+离散随机变量 $X$ 的熵为
+\[
+H(X)=\E[\imath_X(X)]
+=-\sum_{x\in\mathcal X}p_X(x)\log_2 p_X(x).
+\]
+\end{definition}
+
+熵是分布 $p_X$ 的函数。它对符号名字不敏感，只关心各概率的排列。
+
+\subsection{二元熵函数}
+
+对 $X\sim\mathrm{Bernoulli}(p)$，定义
+\[
+h_2(p)=-p\log_2 p-(1-p)\log_2(1-p).
+\]
+它满足 $h_2(0)=h_2(1)=0$、$h_2(1/2)=1$，并关于 $p=1/2$ 对称。
+
+对 $0<p<1$ 求导：
+\[
+h_2'(p)=\log_2\frac{1-p}{p},
+\qquad
+h_2''(p)=-\frac{1}{\ln 2}\left(\frac1p+\frac1{1-p}\right)<0.
+\]
+因此二元熵严格凹，并在 $p=1/2$ 取得最大值。
+
+\begin{example}[偏斜硬币]
+若 $p=1/4$，则
+\[
+h_2(1/4)
+=-\frac14\log_2\frac14-\frac34\log_2\frac34
+\approx 0.811\bits.
+\]
+它小于公平硬币的 $1$ bit，因为偏斜硬币更容易预测。
+\end{example}
+
+\section{熵的基本边界}
+
+\begin{theorem}[有限字母表上的熵界]
+若 $|\mathcal X|=m$，则
+\[
+0\le H(X)\le \log_2 m.
+\]
+左侧等号当且仅当 $X$ 几乎必然为某个固定值；右侧等号当且仅当 $X$ 在 $\mathcal X$ 上均匀分布。
+\end{theorem}
+
+\begin{proof}[证明骨架]
+每一项 $-p(x)\log p(x)$ 非负，所以 $H(X)\ge 0$。上界可以由下一章的 KL 非负性得到。令 $U$ 为 $\mathcal X$ 上的均匀分布，则
+\[
+D_{\mathrm{KL}}(P_X\|U)
+=\sum_x p(x)\log_2\frac{p(x)}{1/m}
+=\log_2 m-H(X)\ge 0.
+\]
+等号条件来自 KL 散度为零当且仅当两个分布相同。
+\end{proof}
+
+\begin{intuitionbox}
+熵上界说的是：若只有 $m$ 种可能结果，平均不确定性不会超过区分 $m$ 个等概率结果所需的 $\log_2 m$ bits。它不是说任何单个符号都能用 $\log_2 m$ 个比特无损编码；编码是否为整数长度、是否允许分块，还要在第三章讨论。
+\end{intuitionbox}
+
+\section{独立重复与可加性}
+
+若 $X_1,\dots,X_n$ 相互独立，则联合分布分解为
+\[
+p(x_1,\dots,x_n)=\prod_{i=1}^n p_i(x_i).
+\]
+于是
+\begin{align*}
+H(X_1,\dots,X_n)
+&=-\E\log_2\prod_{i=1}^n p_i(X_i)\\
+&=\sum_{i=1}^n H(X_i).
+\end{align*}
+对独立同分布样本 $X^n=(X_1,\dots,X_n)$，有 $H(X^n)=nH(X)$。
+
+\begin{warningbox}
+没有独立性时，联合熵一般不等于边缘熵之和。正确关系是下一章的链式法则
+$H(X,Y)=H(X)+H(Y|X)$。
+\end{warningbox}
+
+\section{一个完整数值例子}
+
+设字母表为 $\{a,b,c,d\}$，分布为
+\[
+p=(1/2,1/4,1/8,1/8).
+\]
+四个符号的自信息分别为 $1,2,3,3$ bits，因此
+\[
+H(X)=\frac12\cdot1+\frac14\cdot2+\frac18\cdot3+\frac18\cdot3
+=1.75\bits.
+\]
+这个例子随后会对应一棵 Huffman 树，其码长正好为 $1,2,3,3$，平均码长等于熵。一般分布不一定恰好达到熵，只能满足相应上下界。
+
+\section{小结与验收}
+
+\begin{checkpointbox}
+在不看讲义的情况下完成：
+\begin{enumerate}
+  \item 解释自信息和熵分别是“单次量”还是“平均量”；
+  \item 推导 $h_2'(p)$ 并说明公平硬币为何熵最大；
+  \item 手算分布 $(1/2,1/4,1/8,1/8)$ 的熵；
+  \item 说明“熵为 1 bit”为什么不等于每个观测在文件中恰好占 1 bit。
+\end{enumerate}
+\end{checkpointbox}

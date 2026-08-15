@@ -1,0 +1,135 @@
+\chapter{随机算法在 AI4TCS 中的验证与实验}
+
+AI4TCS 中常见闭环是生成候选算法或程序、执行 verifier、把错误或分数反馈给搜索。随机化可以降低测试和搜索成本，但也引入统计波动、数据泄漏和适应性风险。
+
+\section{四层 verifier}
+
+\begin{enumerate}
+  \item \textbf{语法/接口层}：能否解析、编译，输入输出类型是否正确；
+  \item \textbf{小规模正确性层}：穷举有限输入，找到最小反例；
+  \item \textbf{随机测试层}：从明确定义的分布采样，估计失败率；
+  \item \textbf{理论/证书层}：不变量、形式证明、SMT 证书、复杂度和概率保证。
+\end{enumerate}
+不同层回答不同问题。随机测试通过不能推出任意输入正确；形式证明通过也只保证当前 formal statement，不自动保证自然语言规范忠实。
+
+\section{正确性分数和性能分数分开}
+
+候选程序常同时有两个目标：
+\begin{align*}
+S_{\mathrm{correct}}&=\text{通过的规范测试或证明义务},\\
+S_{\mathrm{perf}}&=\text{运行时间、空间或目标函数}.
+\end{align*}
+必须先规定 correctness gate，再比较性能。否则搜索器可能通过返回常量、利用未覆盖边界或超时逃逸来获得高分。
+
+一个稳健 evaluator 至少记录：
+\begin{itemize}
+  \item 第一个失败输入和最小化后的反例；
+  \item 超时、异常、数值溢出和非法输出；
+  \item 随机 seed 与环境版本；
+  \item 正确性与性能各自的聚合规则；
+  \item 是否使用了隐藏测试和跨规模测试。
+\end{itemize}
+
+\section{数据划分与适应性过拟合}
+
+把输入分为：搜索/训练集、validation、hidden tests 和 out-of-distribution tests。候选反复看到同一 verifier 反馈后，会对 verifier 本身过拟合；即使生成器不是神经网络，这种适应性仍存在。
+
+风险包括：
+\begin{itemize}
+  \item 记住有限输入答案；
+  \item 针对固定随机 seed；
+  \item 利用计时器、异常处理或浮点容差；
+  \item 在训练规模内正确但跨规模失败；
+  \item 产生语法不同、语义相同的大量重复候选。
+\end{itemize}
+因此 hidden tests 不能参与候选选择；最终还要用穷举、证明或新的随机性复核。
+
+\section{随机测试怎样报告}
+
+假设在 $N$ 个独立测试中观察到 $K$ 次失败。报告 $K/N$ 只是点估计，还应给出置信区间或至少说明样本量与采样分布。
+
+若观察到 0 次失败，不能说失败概率为 0。粗略的“rule of three”指出，在 95\% 置信水平下，失败概率上界约为 $3/N$（大样本近似）。要声称失败概率小于 $10^{-6}$，几十个测试远远不够。
+
+多个候选、多个指标和多轮搜索会产生 multiple testing 问题。只报告所有运行中的最好一次会严重高估性能；应固定预算并报告分布、均值/中位数与方差。
+
+\section{Freivalds 作为分层 verifier}
+
+验证模型生成的矩阵乘积候选 $C$ 时，可以分层：
+\begin{enumerate}
+  \item shape、dtype 和有限值检查；
+  \item 小矩阵精确乘法；
+  \item 大矩阵上运行 $k$ 次 Freivalds，错误接受概率至多 $2^{-k}$；
+  \item 对最终候选做精确验证或符号恒等式检查；
+  \item 若声称新算法，再检查乘法次数、加法次数、数值稳定性和等价变换。
+\end{enumerate}
+这里随机 verifier 是筛选器，不是原创性或复杂度 verifier。
+
+\section{Property testing 的位置}
+
+Property testing 允许以少量查询区分：对象满足性质，还是与所有满足性质的对象至少相距 $\epsilon$。它通常不负责精确重建对象。
+
+一个 property tester 必须写清：
+\begin{itemize}
+  \item 距离度量；
+  \item completeness 与 soundness；
+  \item 查询模型和查询复杂度；
+  \item 单侧或双侧错误；
+  \item 输入是否可自适应响应查询。
+\end{itemize}
+把普通随机单元测试称为 property testing，若没有这些形式要素，会混淆证据等级。
+
+\section{Lean、SMT、穷举和随机测试如何分工}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{lXX}
+\toprule
+工具 & 适合验证 & 主要边界\\
+\midrule
+穷举 & 极小有限域上的全覆盖 & 规模爆炸\\
+随机测试 & 快速发现常见/分布性错误 & 不能证明无反例\\
+SMT/SAT & 有限逻辑、位向量、约束 & 建模和规模限制\\
+Lean & 明确定义下的可审计证明 & 形式化成本、语义忠实\\
+概率证明 & 随机算法的一般保证 & 假设必须与实现一致\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+推荐先用随机测试发现反例，再把稳定的定义和核心不变量送入 Lean；不要一开始形式化完整系统，也不要让测试结果冒充定理。
+
+\section{两周最小闭环}
+
+\begin{aibox}
+选择一个 20--50 行候选函数接口：
+\begin{enumerate}
+  \item 第 1--2 天：写规范、exact baseline 和小规模穷举；
+  \item 第 3--5 天：加入随机测试、seed 日志和反例缩减；
+  \item 第 6--8 天：实现最简单的候选变异/搜索器；
+  \item 第 9--10 天：冻结搜索，运行 hidden/OOD tests；
+  \item 第 11--12 天：分析第一个失败类别和等价候选；
+  \item 第 13--14 天：整理命令、结果表、理论边界和停止判断。
+\end{enumerate}
+\end{aibox}
+
+\section{发布前验收表}
+
+\begin{itemize}
+  \item 随机源、seed 和独立性是否记录？
+  \item 失败事件和概率是理论界还是经验估计？
+  \item 搜索集、hidden、OOD 是否物理隔离？
+  \item 是否保存最小反例，而不是只有总分？
+  \item 是否检查跨规模、数值边界和超时？
+  \item 是否区分正确性、性能、原创性和渐近复杂度？
+  \item 最终候选是否有更强 verifier 或人工审计？
+\end{itemize}
+
+\section{小结与验收}
+
+\begin{checkpointbox}
+\begin{enumerate}
+  \item 为一个候选算法写出四层 verifier；
+  \item 解释为什么固定 seed 和重复公开测试会造成过拟合；
+  \item 说明 100 次测试零失败为何不能证明失败概率为零；
+  \item 给出 Freivalds 之后仍需精确验证的原因；
+  \item 选择一个性质，分别写出随机测试、SMT 或 Lean 能验证到哪一层。
+\end{enumerate}
+\end{checkpointbox}

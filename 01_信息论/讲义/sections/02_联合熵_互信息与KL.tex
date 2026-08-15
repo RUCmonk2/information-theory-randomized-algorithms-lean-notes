@@ -1,0 +1,220 @@
+\chapter{联合熵、互信息与 KL 散度}
+
+上一章只处理一个随机变量。本章研究两个变量之间的信息关系：知道 $Y$ 后，$X$ 还剩多少不确定性？两个变量共享多少统计信息？两个分布相差多少？
+
+\section{联合分布、边缘分布与条件分布}
+
+联合概率质量函数为 $p_{XY}(x,y)$。边缘分布由求和得到：
+\[
+p_X(x)=\sum_y p_{XY}(x,y),
+\qquad
+p_Y(y)=\sum_x p_{XY}(x,y).
+\]
+当 $p_Y(y)>0$ 时，条件分布为
+\[
+p_{X|Y}(x|y)=\frac{p_{XY}(x,y)}{p_Y(y)}.
+\]
+独立性等价于 $p_{XY}(x,y)=p_X(x)p_Y(y)$ 对所有 $(x,y)$ 成立。
+
+\begin{definition}[联合熵与条件熵]
+\begin{align*}
+H(X,Y)&=-\sum_{x,y}p(x,y)\log_2p(x,y),\\
+H(X|Y)&=\sum_y p(y)H(X|Y=y)\\
+&=-\sum_{x,y}p(x,y)\log_2p(x|y).
+\end{align*}
+\end{definition}
+
+\section{熵的链式法则}
+
+\begin{theorem}[链式法则]
+\[
+H(X,Y)=H(Y)+H(X|Y)=H(X)+H(Y|X).
+\]
+更一般地，
+\[
+H(X_1,\dots,X_n)=\sum_{i=1}^n H(X_i|X_1,\dots,X_{i-1}).
+\]
+\end{theorem}
+
+\begin{proof}
+利用 $p(x,y)=p(y)p(x|y)$，有
+\begin{align*}
+H(X,Y)
+&=-\sum_{x,y}p(x,y)\log_2[p(y)p(x|y)]\\
+&=-\sum_{x,y}p(x,y)\log_2p(y)
+  -\sum_{x,y}p(x,y)\log_2p(x|y)\\
+&=H(Y)+H(X|Y).
+\end{align*}
+交换 $X,Y$ 得到另一种分解。多变量版本反复应用二变量链式法则即可。
+\end{proof}
+
+\begin{intuitionbox}
+联合不确定性可以按顺序支付：先描述 $Y$，再在已知 $Y$ 的条件下描述 $X$。链式法则是编码、典型集和通信协议中最常用的“信息记账规则”。
+\end{intuitionbox}
+
+\section{KL 散度与 Gibbs 不等式}
+
+\begin{definition}[KL 散度]
+对有限集合上的分布 $P,Q$，若 $P(x)>0$ 时均有 $Q(x)>0$，定义
+\[
+D_{\mathrm{KL}}(P\|Q)
+=\sum_x P(x)\log_2\frac{P(x)}{Q(x)}.
+\]
+若存在 $P(x)>0$ 但 $Q(x)=0$，则散度为 $+\infty$。
+\end{definition}
+
+\begin{theorem}[Gibbs 不等式]
+\[
+D_{\mathrm{KL}}(P\|Q)\ge 0,
+\]
+等号当且仅当 $P=Q$（在 $P$ 的支持上）。
+\end{theorem}
+
+\begin{proof}
+使用自然对数不等式 $\ln t\le t-1$：
+\begin{align*}
+D_{\mathrm{KL}}(P\|Q)
+&=-\frac1{\ln2}\sum_xP(x)\ln\frac{Q(x)}{P(x)}\\
+&\ge -\frac1{\ln2}\sum_xP(x)
+\left(\frac{Q(x)}{P(x)}-1\right)\\
+&=-\frac1{\ln2}\left(\sum_xQ(x)-\sum_xP(x)\right)=0.
+\end{align*}
+等号要求 $Q(x)/P(x)=1$ 对所有 $P(x)>0$ 成立。
+\end{proof}
+
+\subsection{交叉熵}
+
+交叉熵定义为
+\[
+H(P,Q)=-\sum_xP(x)\log_2Q(x).
+\]
+它满足
+\[
+H(P,Q)=H(P)+D_{\mathrm{KL}}(P\|Q).
+\]
+当真实分布固定时，最小化交叉熵等价于最小化 $D_{\mathrm{KL}}(P\|Q)$。这解释了分类模型中的交叉熵目标，但不意味着交叉熵下降自动带来推理、证明或算法能力。
+
+\begin{warningbox}
+KL 散度不是距离：通常 $D(P\|Q)\ne D(Q\|P)$，也不满足三角不等式。书写时不能省略方向。
+\end{warningbox}
+
+\begin{example}[KL 的不对称性]
+取 $P=(1/2,1/2)$、$Q=(3/4,1/4)$，则
+\begin{align*}
+D(P\|Q)&=\tfrac12\log_2\tfrac23+\tfrac12\log_2 2\approx0.2075,\\
+D(Q\|P)&=\tfrac34\log_2\tfrac32+\tfrac14\log_2\tfrac12\approx0.1887.
+\end{align*}
+两者不同。
+\end{example}
+
+\section{互信息}
+
+\begin{definition}[互信息]
+\[
+I(X;Y)=D_{\mathrm{KL}}(P_{XY}\|P_XP_Y)
+=\sum_{x,y}p(x,y)\log_2\frac{p(x,y)}{p(x)p(y)}.
+\]
+\end{definition}
+
+由 KL 非负性，$I(X;Y)\ge0$；等号当且仅当 $X,Y$ 独立。
+
+把联合分布分解为 $p(x,y)=p(y)p(x|y)$，可得四个等价表达：
+\begin{align*}
+I(X;Y)
+&=H(X)-H(X|Y)\\
+&=H(Y)-H(Y|X)\\
+&=H(X)+H(Y)-H(X,Y)\\
+&=D_{\mathrm{KL}}(P_{XY}\|P_XP_Y).
+\end{align*}
+
+因此，互信息既可以解释为“观察 $Y$ 后 $X$ 的不确定性平均减少多少”，也可以解释为“联合分布偏离独立分布多远”。
+
+\begin{example}[带噪复制]
+设 $X\sim\mathrm{Bernoulli}(1/2)$，$N\sim\mathrm{Bernoulli}(q)$ 且独立，令 $Y=X\oplus N$。则 $Y$ 仍均匀，
+\[
+H(Y)=1,\qquad H(Y|X)=H(N)=h_2(q),
+\]
+所以
+\[
+I(X;Y)=1-h_2(q).
+\]
+当 $q=0$ 时完全保留 1 bit；当 $q=1/2$ 时输出与输入独立，互信息为 0。
+\end{example}
+
+\section{条件互信息与链式法则}
+
+\begin{definition}[条件互信息]
+\[
+I(X;Y|Z)=H(X|Z)-H(X|Y,Z).
+\]
+\end{definition}
+它是对每个 $Z=z$ 的互信息取平均，因此非负。互信息链式法则为
+\[
+I(X;Y,Z)=I(X;Z)+I(X;Y|Z).
+\]
+进一步，
+\[
+I(X;Y_1,\dots,Y_n)
+=\sum_{i=1}^n I(X;Y_i|Y_1,\dots,Y_{i-1}).
+\]
+
+\section{条件化减少熵与数据处理不等式}
+
+由 $I(X;Y)=H(X)-H(X|Y)\ge0$，得到
+\[
+H(X|Y)\le H(X).
+\]
+这是一条平均意义的结论；对某个特定 $Y=y$，条件熵可以高于原熵。
+
+\begin{theorem}[数据处理不等式]
+若 $X\to Y\to Z$ 构成 Markov 链，即给定 $Y$ 后 $Z$ 与 $X$ 条件独立，则
+\[
+I(X;Z)\le I(X;Y).
+\]
+\end{theorem}
+
+\begin{proof}[证明骨架]
+一方面，由链式法则
+\[
+I(X;Y,Z)=I(X;Y)+I(X;Z|Y)=I(X;Y),
+\]
+其中 Markov 条件给出 $I(X;Z|Y)=0$。另一方面，
+\[
+I(X;Y,Z)=I(X;Z)+I(X;Y|Z)\ge I(X;Z).
+\]
+合并即得结论。
+\end{proof}
+
+\begin{intuitionbox}
+对数据做后处理不能凭空增加它与原始变量之间的统计信息。后处理可以重新组织、压缩或突出某些信息，但若只观察 $Z=f(Y)$，关于 $X$ 的总互信息不会超过观察完整 $Y$。
+\end{intuitionbox}
+
+\section{一个联合分布例子}
+
+令联合分布为
+\[
+\begin{array}{c|cc}
+ &Y=0&Y=1\\\hline
+X=0&3/8&1/8\\
+X=1&1/8&3/8
+\end{array}
+\]
+两个边缘分布都均匀，所以 $H(X)=H(Y)=1$。给定 $Y$ 后，$X=Y$ 的概率为 $3/4$，故
+\[
+H(X|Y)=h_2(1/4)\approx0.811,
+\qquad
+I(X;Y)\approx0.189\bits.
+\]
+这个数值等于一个交叉概率 $q=1/4$ 的二元对称信道所保留的信息。
+
+\section{小结与验收}
+
+\begin{checkpointbox}
+\begin{enumerate}
+  \item 从 $p(x,y)=p(y)p(x|y)$ 推导熵的链式法则；
+  \item 说明 KL 散度非负的关键不等式和等号条件；
+  \item 写出互信息的四种等价表达，并解释每一种视角；
+  \item 对上面的 $2\times2$ 联合分布手算 $H(X|Y)$ 和 $I(X;Y)$；
+  \item 用一句话说明数据处理不等式依赖的 Markov 假设。
+\end{enumerate}
+\end{checkpointbox}

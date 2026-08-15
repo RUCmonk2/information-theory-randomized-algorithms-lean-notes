@@ -1,0 +1,83 @@
+\chapter{综合习题与参考答案}
+
+建议先独立完成，再查看参考答案。答案强调关键步骤，不替代完整书写。
+
+\section{习题}
+
+\begin{enumerate}[label=\textbf{I\arabic*.}]
+  \item 计算分布 $(1/2,1/4,1/8,1/8)$ 的熵，并说明为什么它能被码长 $(1,2,3,3)$ 精确达到。
+  \item 设 $X\sim\mathrm{Bernoulli}(p)$。证明 $h_2(p)$ 关于 $p=1/2$ 对称且严格凹，并找出最大值。
+  \item 给出一个非奇异但不可唯一译的码，再给出一个唯一可译但非前缀码的码（可查阅 Sardinas--Patterson 判据验证后者）。
+  \item 判断码长集合 $(1,2,3,3)$、$(1,2,2,3)$、$(2,2,3,3,3)$ 是否满足 Kraft 不等式。
+  \item 对分布 $(0.4,0.3,0.2,0.1)$ 构造 Huffman 码，计算平均码长并与熵比较。
+  \item 设 $Y=X\oplus N$，其中 $X\sim\mathrm{Bernoulli}(1/2)$、$N\sim\mathrm{Bernoulli}(q)$ 且独立。计算 $H(Y)$、$H(Y|X)$ 和 $I(X;Y)$。
+  \item 证明若 $X\to Y\to Z$ 是 Markov 链，则 $I(X;Z)\le I(X;Y)$。
+  \item 解释固定长度信源编码中，为什么 $R>H(X)$ 时典型集可以被索引，而 $R<H(X)$ 时不够。
+  \item 推导 BEC$(\varepsilon)$ 的容量，并比较它和 BSC$(\varepsilon)$ 的数值及语义差别。
+  \item 在随机编码证明中，若 $R=I(X;Y)-2\delta$，估计错误码字联合典型事件的 union bound 指数阶。
+  \item 使用 Fano 不等式解释：若从 $s$-bit 消息中恢复一个均匀 $m$-bit 字符串且错误概率趋零，为什么必须有 $s\gtrsim m$。
+  \item 为“预测增强 Count-Min Sketch”写一份信息论问题定义，至少包含随机变量、预测误差、资源、成功事件和不声称的结论。
+\end{enumerate}
+
+\section{参考答案与提示}
+
+\paragraph{I1.}
+自信息为 $1,2,3,3$，所以 $H=1.75$ bits。概率满足 $p_i=2^{-\ell_i}$，且 Kraft 和等于 1，因此整数码长与理想自信息完全一致。
+
+\paragraph{I2.}
+直接代换 $1-p$ 得对称性。二阶导
+\[
+h_2''(p)=-\frac1{\ln2}\left(\frac1p+\frac1{1-p}\right)<0
+\]
+给出严格凹；一阶导在 $p=1/2$ 为零，最大值为 1。
+
+\paragraph{I3.}
+非奇异但不可唯一译可用 $\{0,01,10\}$，因为 $010$ 有两种解析。唯一可译但非前缀码可用 $\{0,01\}$：$0$ 是 $01$ 的前缀，但任何合法串中出现的 1 只能与它前面的 0 组成 $01$，因此解析唯一。严格处理更大码集时可使用 Sardinas--Patterson 判据，不能只凭“短时间没找到歧义”下结论。
+
+\paragraph{I4.}
+分别计算 Kraft 和：
+\[
+\tfrac12+\tfrac14+\tfrac18+\tfrac18=1,
+\quad
+\tfrac12+\tfrac14+\tfrac14+\tfrac18=\tfrac98>1,
+\quad
+\tfrac14+\tfrac14+3\cdot\tfrac18=\tfrac78.
+\]
+第一、第三组可构造前缀码，第二组不行。
+
+\paragraph{I5.}
+合并 $0.1+0.2=0.3$，再合并两个 $0.3$ 得 $0.6$，最后 $0.4+0.6$。一种码长为 $(1,2,3,3)$，平均码长 $1.9$ bits。熵约为 $1.846$ bits，满足 $H\le L<H+1$。
+
+\paragraph{I6.}
+$Y$ 均匀，所以 $H(Y)=1$；给定 $X$ 后只剩噪声，$H(Y|X)=h_2(q)$；因此 $I(X;Y)=1-h_2(q)$。
+
+\paragraph{I7.}
+用互信息链式法则：
+\[
+I(X;Y,Z)=I(X;Y)+I(X;Z|Y)=I(X;Y),
+\]
+同时
+\[
+I(X;Y,Z)=I(X;Z)+I(X;Y|Z)\ge I(X;Z).
+\]
+
+\paragraph{I8.}
+典型集约有 $2^{nH}$ 个元素。码率 $R$ 提供 $2^{nR}$ 个索引。$R>H$ 时足够覆盖高概率典型集；$R<H$ 时可编码的典型序列比例按 $2^{-n(H-R)}$ 衰减。
+
+\paragraph{I9.}
+擦除位置以概率 $\varepsilon$ 不提供信息，容量为 $1-\varepsilon$。BSC 容量为 $1-h_2(\varepsilon)$；擦除位置可见，翻转位置不可见，因此两者不能只按“受损比例”比较。
+
+\paragraph{I10.}
+错误码字数约 $2^{nR}$，单个伪匹配概率约 $2^{-n(I-\delta)}$，乘积为
+\[
+2^{-n(I-R-\delta)}=2^{-n\delta}.
+\]
+
+\paragraph{I11.}
+设原串为 $X$、消息为 $M$、恢复结果为 $\hat X$。Fano 给出 $H(X|M)=o(m)$，于是
+\[
+m=H(X)=I(X;M)+H(X|M)\le H(M)+o(m)\le s+o(m).
+\]
+
+\paragraph{I12.}
+一种合格定义是：$X$ 为真实频率向量，$Z$ 为预测向量，误差 $\eta=\|X-Z\|_1/\|X\|_1$；状态限于 $s$ bits；成功事件为所有查询误差满足给定界，失败概率至多 $\delta$。实验只能说明选定分布上的经验表现，不能单独声称 worst-case consistency/robustness。

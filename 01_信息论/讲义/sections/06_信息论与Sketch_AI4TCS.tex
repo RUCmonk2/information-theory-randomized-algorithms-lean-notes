@@ -1,0 +1,132 @@
+\chapter{信息论与 Sketch、通信复杂度和 AI4TCS}
+
+本章不再引入完整新定理，而是把前五章的对象映射到数据流和可验证算法研究中。每个连接都要区分：严格归约、可证明上界、启发式指标和仅用于建立直觉的类比。
+
+\section{Sketch 是受限长度的消息}
+
+数据流算法把长输入流压缩成小状态 $S$。若状态使用 $s$ bits，那么它最多有 $2^s$ 种取值。查询算法只能依据 $S$ 和查询参数输出答案。
+
+这与单向通信协议非常接近：
+\begin{enumerate}
+  \item Alice 读取流的前一部分并生成 sketch $S$；
+  \item Alice 把 $S$ 作为消息发送给 Bob；
+  \item Bob 根据自己的输入继续更新或发起查询；
+  \item 若 sketch 能解决流问题，通信协议就能解决相应通信问题。
+\end{enumerate}
+因此，如果相关通信问题需要至少 $b$ bits，任何实现该归约的 sketch 也必须使用至少 $b$ bits。
+
+\begin{intuitionbox}
+流式空间下界常问：有限状态究竟区分了多少种输入情况？信息论提供“状态容量”的语言，通信复杂度则提供把空间限制转成消息长度限制的标准模型。
+\end{intuitionbox}
+
+\section{从熵界到通信下界的基本骨架}
+
+设 Alice 的随机输入为 $X$，消息为 $M=f(X)$，长度至多 $s$ bits，则
+\[
+H(M)\le s,
+\qquad
+I(X;M)\le H(M)\le s.
+\]
+若任务要求 Bob 从 $(M,Y)$ 中以小错误恢复 $X$ 的某个高信息量函数，就可借助 Fano 不等式或问题特定论证，推出 $I(X;M|Y)$ 必须足够大，进而得到 $s$ 的下界。
+
+真正的下界证明还需要：
+\begin{itemize}
+  \item 选择困难输入分布；
+  \item 明确允许的随机性（public/private coins）；
+  \item 明确单向还是多轮通信；
+  \item 把流算法的成功概率、passes 和空间逐项映射到协议。
+\end{itemize}
+
+\section{预测作为 side information}
+
+在 learning-augmented streaming 中，预测 $Z$ 可以被看作关于真实流特征 $X$ 的 side information。自然问题包括：
+\begin{align*}
+&H(X|Z)\text{ 比 }H(X)\text{ 小多少？}\\
+&I(X;Z)=H(X)-H(X|Z)\text{ 是否能转化为空间收益？}
+\end{align*}
+
+Slepian--Wolf 理论表明，在特定的独立同分布分布式无失真压缩模型中，解码端拥有 $Z$ 时，$X$ 的渐近压缩率可下降到 $H(X|Z)$。但学习增强 Sketch 往往是 worst-case 流、有限内存、在线更新和查询误差模型，不能直接套用该结论。
+
+\begin{warningbox}
+预测的 KL 误差小，不自动推出某个 sketch 的查询误差小；互信息高，也不自动给出高效在线算法。必须提供把信息量连接到具体状态、更新和查询保证的定理。
+\end{warningbox}
+
+\section{Consistency 与 robustness}
+
+学习增强算法通常同时要求：
+\begin{description}
+  \item[Consistency] 预测准确时优于经典基线；
+  \item[Robustness] 预测任意错误时不会比经典基线坏太多。
+\end{description}
+一个完整问题必须定义预测接口 $Z$、误差度量 $\eta(X,Z)$、资源成本和查询误差。例如：
+\[
+\text{space}=S(\epsilon,\delta,\eta),
+\qquad
+\Prb[|\widehat f-f|>E(\eta)]\le\delta.
+\]
+信息论可以帮助设计 $\eta$ 或证明不可能性，但最终保证要落到算法参数上。
+
+\section{Verifier 反馈包含多少信息}
+
+在 verifier-guided search 中，候选对象为 $C$，反馈为 $F$。若 verifier 只返回一位 accept/reject，则单次反馈熵至多 1 bit；若返回详细反例、proof state 或连续分数，理论上可能携带更多关于候选错误结构的信息。
+
+但“反馈字段更多”不等于“搜索有效信息更多”：
+\begin{itemize}
+  \item 反馈可能高度冗余；
+  \item 搜索器可能无法利用其结构；
+  \item 反馈可能泄漏 benchmark 答案并导致投机；
+  \item 生成反馈的计算成本可能远高于收益。
+\end{itemize}
+可以把研究问题写成：在固定 verifier 成本下，哪种反馈表示提高了候选成功率或降低了搜索样本复杂度？
+
+\section{证明轨迹、程序与描述长度}
+
+证明、程序和算法都可以编码成有限字符串。描述长度可以用来提出问题：
+\begin{itemize}
+  \item 一个候选是否只是现有解的冗长等价变换？
+  \item 搜索空间的表示是否引入大量无意义自由度？
+  \item 证明证书能否被短消息验证？
+\end{itemize}
+但不能把“描述更短”直接等同于“数学更深”或“算法复杂度更优”。Kolmogorov complexity、最小描述长度和 Shannon 熵属于不同层次的对象，需要各自的模型和假设。
+
+\section{适合当前背景的研究问题}
+
+\begin{aibox}
+一个可控的两周问题可以这样定义：
+\begin{enumerate}
+  \item 选择 Count-Min Sketch 作为经典 baseline；
+  \item 令预测器给出候选 heavy hitters 或频率先验；
+  \item 明确定义预测误差，而不是只给模型准确率；
+  \item 比较 exact counter、经典 sketch 和预测增强版本；
+  \item 记录空间、查询误差、失败概率和最坏预测分布；
+  \item 只把实验证据写成经验结果，把 consistency/robustness 留给可证明部分。
+\end{enumerate}
+\end{aibox}
+
+\section{证据等级表}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{lXX}
+\toprule
+证据 & 可以说明 & 不能单独说明\\
+\midrule
+有限数据实验 & 特定分布和预算上的表现 & worst-case 或渐近保证\\
+随机测试 & 抽样范围内未发现错误 & 任意输入正确\\
+通信归约 & 模型内的空间/通信下界 & 其他模型仍然不可能\\
+信息不等式 & 随机变量间的必然约束 & 存在高效实现算法\\
+Lean/kernel 检查 & 当前形式化命题可证明 & 自然语言语义正确或有创新性\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\section{小结与验收}
+
+\begin{checkpointbox}
+\begin{enumerate}
+  \item 画出一次从流算法到单向通信协议的归约流程；
+  \item 解释消息长度 $s$ 为什么给出 $I(X;M)\le s$；
+  \item 给出一个 side information 有用但不能直接套 Slepian--Wolf 的流式例子；
+  \item 为一个 learning-augmented sketch 写出 prediction interface、error、consistency 和 robustness；
+  \item 区分 verifier 反馈的字段长度、熵和对搜索真正有用的信息。
+\end{enumerate}
+\end{checkpointbox}

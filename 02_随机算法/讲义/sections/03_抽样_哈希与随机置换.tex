@@ -1,0 +1,130 @@
+\chapter{抽样、哈希与随机置换}
+
+随机算法经常需要从大对象中保留一个小而无偏的代表，或把对象随机映射到较小空间。本章重点不是 API，而是证明每种随机操作保留了什么分布性质。
+
+\section{Bernoulli 抽样与无偏估计}
+
+设数值 $a_1,\dots,a_n$ 固定，独立生成 $I_i\sim\mathrm{Bernoulli}(p)$。估计总和
+\[
+T=\sum_{i=1}^na_i
+\]
+的一种 Horvitz--Thompson 型估计为
+\[
+\widehat T=\sum_{i=1}^n\frac{I_i a_i}{p}.
+\]
+因为 $\E I_i=p$，
+\[
+\E\widehat T=T.
+\]
+若抽样独立，则
+\[
+\Var(\widehat T)
+=\sum_i\frac{a_i^2}{p^2}\Var(I_i)
+=\frac{1-p}{p}\sum_i a_i^2.
+\]
+这同时说明：无偏不代表方差小；当 $p$ 很小或数值极不均衡时，估计可能剧烈波动。
+
+\section{Reservoir sampling}
+
+数据流长度未知时，要均匀保留一个元素：
+\begin{enumerate}
+  \item 第 1 个元素直接放入 reservoir；
+  \item 看到第 $t$ 个元素时，以概率 $1/t$ 用它替换当前元素；
+  \item 否则保持不变。
+\end{enumerate}
+
+\begin{theorem}
+处理完前 $t$ 个元素后，每个元素留在 reservoir 中的概率都为 $1/t$。
+\end{theorem}
+
+\begin{proof}
+第 $t$ 个元素以概率 $1/t$ 被选中。对旧元素 $i<t$，由归纳假设它在第 $t-1$ 步后保留的概率为 $1/(t-1)$；第 $t$ 步不被替换的概率为 $1-1/t$，所以
+\[
+\frac1{t-1}\left(1-\frac1t\right)=\frac1t.
+\]
+\end{proof}
+
+大小为 $k$ 的 reservoir 类似：前 $k$ 个全部保留；第 $t>k$ 个元素以概率 $k/t$ 进入，并均匀替换一个槽位。最终每个元素被包含的概率为 $k/t$，但槽位事件之间并不独立。
+
+\section{Fisher--Yates 随机置换}
+
+要均匀生成长度 $n$ 的随机排列，从 $i=n-1$ 到 $1$，在 $\{0,\dots,i\}$ 中均匀选择 $j$，交换位置 $i,j$。
+
+\begin{lstlisting}
+def fisher_yates(a, rng):
+    for i in range(len(a) - 1, 0, -1):
+        j = rng.randint(0, i)
+        a[i], a[j] = a[j], a[i]
+\end{lstlisting}
+
+每个排列对应唯一一串选择
+\[
+j_{n-1}\in\{0,\dots,n-1\},\dots,j_1\in\{0,1\}.
+\]
+该选择串的概率为
+\[
+\frac1n\cdot\frac1{n-1}\cdots\frac12=\frac1{n!},
+\]
+因此输出严格均匀。
+
+\begin{warningbox}
+“对每个位置随机交换一个全局随机位置”的朴素 shuffle 一般不均匀。验证随机生成器时，要证明每个对象的输出概率，而不是只看几次样例像不像随机。
+\end{warningbox}
+
+\section{通用哈希与碰撞概率}
+
+\begin{definition}[通用哈希族]
+从宇宙 $U$ 映射到 $[m]$ 的哈希族 $\mathcal H$ 称为通用的，如果对任意 $x\ne y$，
+\[
+\Prb_{h\sim\mathcal H}[h(x)=h(y)]\le\frac1m.
+\]
+\end{definition}
+
+这个概率针对随机选择的哈希函数，而不是假设输入随机。它允许对任意固定输入集合做碰撞期望分析。
+
+\subsection{线性二进制哈希}
+
+把 key 写成 $u$ 位向量 $x\in\mathbb F_2^u$。随机选择矩阵
+$A\in\mathbb F_2^{b\times u}$，定义
+\[
+h_A(x)=Ax\in\mathbb F_2^b.
+\]
+对 $x\ne y$，令 $v=x-y\ne0$。每一行随机向量与 $v$ 的内积为均匀比特，各行独立，因此
+\[
+\Prb[h_A(x)=h_A(y)]
+=\Prb[Av=0]=2^{-b}.
+\]
+输出桶数 $m=2^b$，碰撞概率恰为 $1/m$。
+
+\section{二阶独立够不够}
+
+若随机变量族中任意两个独立，称为 pairwise independent。它通常足以控制：
+\begin{itemize}
+  \item 碰撞数的期望；
+  \item 线性估计器的方差；
+  \item 通过 Chebyshev 得到的常数概率保证。
+\end{itemize}
+但 Chernoff 的标准指数尾界通常需要完全独立或更强的有限阶独立。算法实现中使用短 seed 生成哈希时，必须把“理论需要几阶独立”写进配置。
+
+\section{随机性也是资源}
+
+若每次试验需要选择 $h\in\mathcal H$，存储完整随机函数可能比算法状态还大。实际会使用参数化哈希族，只存 seed。分析应报告：
+\begin{itemize}
+  \item seed 长度和哈希计算时间；
+  \item seed 是公开还是私有；
+  \item 多次重复是否真正独立；
+  \item 输入是否可在看到 seed 后自适应选择。
+\end{itemize}
+对 oblivious adversary 成立的 sketch，在 adaptive adversary 下可能失效；这不是实现细节，而是问题模型的一部分。
+
+\section{小结与验收}
+
+\begin{checkpointbox}
+\begin{enumerate}
+  \item 推导 Bernoulli 抽样总和估计器的无偏性和方差；
+  \item 用归纳法证明 reservoir sampling 的均匀性；
+  \item 解释 Fisher--Yates 为什么一一对应 $n!$ 条随机选择路径；
+  \item 证明线性二进制哈希的碰撞概率为 $2^{-b}$；
+  \item 给出一个只需 pairwise independence 和一个需要更强独立性的分析。
+\end{enumerate}
+\end{checkpointbox}

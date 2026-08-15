@@ -1,0 +1,148 @@
+\documentclass[UTF8,zihao=-4,oneside,fontset=fandol]{ctexrep}
+
+\usepackage[a4paper,margin=2.35cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools,bm}
+\usepackage{booktabs,tabularx,array,multirow}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{setspace}
+\usepackage{listings}
+\usepackage{tikz}
+\usepackage[most]{tcolorbox}
+\usetikzlibrary{arrows.meta,positioning,trees,calc}
+
+\definecolor{DeepBlue}{HTML}{1F4E79}
+\definecolor{DeepGreen}{HTML}{2E6B4F}
+\definecolor{WarmRed}{HTML}{A33A32}
+\definecolor{SoftGray}{HTML}{F4F5F6}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=DeepBlue,
+  urlcolor=DeepBlue,
+  citecolor=DeepGreen,
+  pdftitle={信息论自学讲义},
+  pdfauthor={RUCmonk2}
+}
+
+\setstretch{1.22}
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0.25em}
+\setlist{itemsep=0.25em,topsep=0.35em}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{信息论自学讲义}
+\fancyhead[R]{\leftmark}
+\fancyfoot[C]{\thepage}
+\setlength{\headheight}{14pt}
+
+\newtheorem{definition}{定义}[chapter]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{proposition}[definition]{命题}
+\newtheorem{lemma}[definition]{引理}
+\newtheorem{corollary}[definition]{推论}
+\theoremstyle{remark}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{说明}
+
+\newtcolorbox{intuitionbox}{
+  colback=DeepBlue!4,colframe=DeepBlue!70!black,
+  title=直觉,breakable,boxrule=0.7pt,arc=1mm
+}
+\newtcolorbox{warningbox}{
+  colback=WarmRed!4,colframe=WarmRed!75!black,
+  title=容易混淆,breakable,boxrule=0.7pt,arc=1mm
+}
+\newtcolorbox{aibox}{
+  colback=DeepGreen!4,colframe=DeepGreen!75!black,
+  title=与 AI4Math / AI4TCS 的连接,breakable,boxrule=0.7pt,arc=1mm
+}
+\newtcolorbox{checkpointbox}{
+  colback=SoftGray,colframe=black!50,
+  title=本节验收,breakable,boxrule=0.6pt,arc=1mm
+}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  columns=fullflexible,
+  frame=single,
+  rulecolor=\color{black!25},
+  backgroundcolor=\color{black!2},
+  xleftmargin=0.6em,
+  xrightmargin=0.6em,
+  showstringspaces=false
+}
+
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\operatorname{Var}}
+\newcommand{\Cov}{\operatorname{Cov}}
+\newcommand{\Prb}{\mathbb{P}}
+\newcommand{\KL}{D_{\mathrm{KL}}}
+\newcommand{\ind}{\mathbf{1}}
+\newcommand{\bits}{\text{ bits}}
+\DeclareMathOperator*{\argmax}{arg\,max}
+
+\title{\heiti 信息论自学讲义\\[0.5em]
+\Large 从熵、编码到信道容量与可验证算法}
+\author{RUCmonk2}
+\date{2026 年 8 月}
+
+\begin{document}
+
+\hypersetup{pageanchor=false}
+\maketitle
+\hypersetup{pageanchor=true}
+
+\chapter*{如何使用这本讲义}
+\addcontentsline{toc}{chapter}{如何使用这本讲义}
+
+这本讲义面向第一次系统学习信息论、同时希望把知识用于随机算法、数据流 Sketch、AI4Math 与 AI4TCS 的读者。它不要求测度论，默认随机变量取有限字母表；所有对数若无特别说明均以 2 为底，因此信息量单位为 bit。
+
+建议每章按四步学习：
+\begin{enumerate}
+  \item 先写出本章要回答的问题，不先背公式；
+  \item 手算正文中的例子，确认公式中的随机变量和分布；
+  \item 阅读证明骨架，标出每一步使用的假设；
+  \item 完成章末验收，再进入下一章。
+\end{enumerate}
+
+讲义中的“AI4Math / AI4TCS 连接”主要用于提出可检验问题。除非明确给出定理和假设，否则这些连接不应被当作已有理论结论。
+
+\tableofcontents
+\clearpage
+
+\input{sections/01_概率与熵.tex}
+\input{sections/02_联合熵_互信息与KL.tex}
+\input{sections/03_无失真信源编码.tex}
+\input{sections/04_离散信道与容量.tex}
+\input{sections/05_随机编码与可靠通信.tex}
+\input{sections/06_信息论与Sketch_AI4TCS.tex}
+\input{sections/07_习题与答案.tex}
+
+\begin{thebibliography}{9}
+\bibitem{cover-thomas}
+Thomas M. Cover and Joy A. Thomas.
+\newblock \emph{Elements of Information Theory}, 2nd edition.
+\newblock Wiley, 2006.
+
+\bibitem{mackay}
+David J. C. MacKay.
+\newblock \emph{Information Theory, Inference, and Learning Algorithms}.
+\newblock Cambridge University Press, 2003.
+
+\bibitem{yeung}
+Raymond W. Yeung.
+\newblock \emph{A First Course in Information Theory}.
+\newblock Springer, 2002.
+
+\bibitem{cormode-yi}
+Graham Cormode and Ke Yi.
+\newblock \emph{Small Summaries for Big Data}.
+\newblock Cambridge University Press, 2020.
+\end{thebibliography}
+
+\end{document}

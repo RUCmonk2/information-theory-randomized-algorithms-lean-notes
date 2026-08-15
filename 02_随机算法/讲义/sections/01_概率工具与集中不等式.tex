@@ -1,0 +1,186 @@
+\chapter{概率工具与集中不等式}
+
+随机算法分析不是把“随机”留给实验，而是把随机选择写成随机变量，再用期望、方差和尾界控制失败事件。本章建立后续反复使用的工具箱。
+
+\section{事件、指示变量与期望线性性}
+
+对事件 $A$，定义指示变量
+\[
+\ind_A=
+\begin{cases}
+1,&A\text{ 发生},\\
+0,&A\text{ 不发生}.
+\end{cases}
+\]
+它满足 $\E[\ind_A]=\Prb(A)$。计数型随机变量常可写成指示变量之和，从而利用
+\[
+\E\left[\sum_iX_i\right]=\sum_i\E[X_i].
+\]
+期望线性性不要求 $X_i$ 独立。
+
+\begin{example}[空桶数]
+把 $n$ 个球独立均匀放入 $n$ 个桶。令 $I_j$ 表示第 $j$ 个桶为空，则
+\[
+\Prb(I_j=1)=\left(1-\frac1n\right)^n.
+\]
+空桶总数 $X=\sum_{j=1}^nI_j$，所以
+\[
+\E X=n\left(1-\frac1n\right)^n\approx\frac ne.
+\]
+各桶是否为空并不独立，但不影响期望计算。
+\end{example}
+
+\section{Union bound}
+
+\begin{theorem}[Union bound]
+对任意事件 $E_1,\dots,E_m$，
+\[
+\Prb\left(\bigcup_{i=1}^mE_i\right)
+\le\sum_{i=1}^m\Prb(E_i).
+\]
+\end{theorem}
+
+它不要求事件独立。代价是可能重复计算交叠部分，因此界可能较松。算法中常把“存在某一步失败”分解成多个局部失败事件，再控制总失败概率。
+
+\begin{example}[对所有查询同时成功]
+若单个查询失败概率至多 $\delta/q$，则对预先固定的 $q$ 个查询，至少一个失败的概率至多 $\delta$。若查询是根据前面结果自适应选择的，还需检查单查询保证是否在条件分布下仍成立，不能机械套用。
+\end{example}
+
+\section{Markov 与 Chebyshev 不等式}
+
+\begin{theorem}[Markov 不等式]
+若 $X\ge0$ 且 $a>0$，则
+\[
+\Prb[X\ge a]\le\frac{\E X}{a}.
+\]
+\end{theorem}
+
+\begin{proof}
+点态上有 $X\ge a\ind_{\{X\ge a\}}$。两边取期望：
+\[
+\E X\ge a\Prb[X\ge a].
+\]
+\end{proof}
+
+\begin{theorem}[Chebyshev 不等式]
+若 $X$ 方差有限，则对 $t>0$，
+\[
+\Prb[|X-\E X|\ge t]\le\frac{\Var(X)}{t^2}.
+\]
+\end{theorem}
+
+\begin{proof}
+对非负随机变量 $(X-\E X)^2$ 使用 Markov 不等式，阈值取 $t^2$。
+\end{proof}
+
+Markov 只使用均值，Chebyshev 使用到二阶矩。它们假设少、适用广，但通常只给多项式衰减。
+
+\section{矩母函数与 Chernoff 方法}
+
+对任意 $\lambda>0$，指数函数单调，故
+\begin{align*}
+\Prb[X\ge a]
+&=\Prb[e^{\lambda X}\ge e^{\lambda a}]\\
+&\le e^{-\lambda a}\E[e^{\lambda X}].
+\end{align*}
+随后选择最优 $\lambda$。若 $X=\sum_iX_i$ 且 $X_i$ 独立，则
+\[
+\E[e^{\lambda X}]=\prod_i\E[e^{\lambda X_i}],
+\]
+这正是独立性带来指数尾界的关键位置。
+
+\begin{theorem}[Bernoulli 和的 Chernoff 界]
+设 $X_i\in\{0,1\}$ 相互独立，$X=\sum_iX_i$，$\mu=\E X$。则对 $\delta>0$，
+\[
+\Prb[X\ge(1+\delta)\mu]
+\le\left(\frac{e^\delta}{(1+\delta)^{1+\delta}}\right)^\mu.
+\]
+特别地，对 $0<\delta\le1$，
+\[
+\Prb[X\ge(1+\delta)\mu]
+\le e^{-\mu\delta^2/3},
+\]
+并且
+\[
+\Prb[X\le(1-\delta)\mu]
+\le e^{-\mu\delta^2/2}.
+\]
+\end{theorem}
+
+\begin{proof}[上尾证明骨架]
+对 Bernoulli 变量，
+\[
+\E[e^{\lambda X_i}]
+=1-p_i+p_ie^\lambda
+\le\exp(p_i(e^\lambda-1)).
+\]
+独立性给出
+\[
+\E[e^{\lambda X}]\le\exp(\mu(e^\lambda-1)).
+\]
+代入 Markov 型界并令 $e^\lambda=1+\delta$，得到第一条。再用
+$(1+\delta)\ln(1+\delta)-\delta\ge\delta^2/3$（$0<\delta\le1$）得到简化形式。
+\end{proof}
+
+\begin{warningbox}
+Chernoff 界不是“任何随机变量都指数集中”。标准版本需要独立 Bernoulli 或相应负相关条件。若算法反复复用同一随机哈希，变量可能相关，必须重新检查假设。
+\end{warningbox}
+
+\section{Hoeffding 不等式}
+
+\begin{theorem}[Hoeffding]
+若独立随机变量 $X_i\in[a_i,b_i]$，令 $S=\sum_iX_i$，则
+\[
+\Prb[S-\E S\ge t]
+\le\exp\left(-\frac{2t^2}{\sum_i(b_i-a_i)^2}\right).
+\]
+双侧界多一个因子 2。
+\end{theorem}
+
+对 $n$ 个 $[0,1]$ 样本的均值 $\bar X$，
+\[
+\Prb[|\bar X-\E X|\ge\epsilon]
+\le2e^{-2n\epsilon^2}.
+\]
+要使失败概率至多 $\delta$，充分取
+\[
+n\ge\frac{1}{2\epsilon^2}\ln\frac2\delta.
+\]
+
+\section{概率放大}
+
+若一次 Monte Carlo 判定以概率至少 $2/3$ 正确，独立运行 $k$ 次并取多数票，错误概率由 Chernoff 界降到 $e^{-\Theta(k)}$。因此要达到错误概率 $\delta$，通常只需 $k=O(\log(1/\delta))$ 次。
+
+对估计问题，常使用 median trick：每组先产生常数成功概率的估计，再对多组独立估计取中位数。只要超过半数组合格，中位数就合格。
+
+\begin{intuitionbox}
+随机算法中常把任务拆成两层：先构造一个常数成功概率、容易分析的基本估计器；再用独立重复把可靠性提升到用户指定的 $1-\delta$。
+\end{intuitionbox}
+
+\section{工具选择表}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{lXXX}
+\toprule
+工具 & 所需信息 & 典型尾部 & 常见用途\\
+\midrule
+Union bound & 单个事件概率 & 概率相加 & 多个失败事件\\
+Markov & 非负、均值 & $1/a$ & 粗略单侧界\\
+Chebyshev & 均值、方差 & $1/t^2$ & 无强独立假设估计\\
+Chernoff & 独立 Bernoulli 和 & 指数衰减 & 计数、采样、放大\\
+Hoeffding & 独立有界变量 & 指数衰减 & 样本均值\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\section{小结与验收}
+
+\begin{checkpointbox}
+\begin{enumerate}
+  \item 用指示变量重新推导空桶数期望；
+  \item 从 Markov 推导 Chebyshev；
+  \item 在 Chernoff 证明中圈出使用独立性的那一步；
+  \item 推导估计 Bernoulli 均值到加性误差 $\epsilon$、失败概率 $\delta$ 所需的样本量；
+  \item 解释为什么重复实验必须使用独立随机性才能直接应用多数票放大。
+\end{enumerate}
+\end{checkpointbox}

@@ -1,0 +1,174 @@
+\chapter{数据流 Sketch：频率、二阶矩与可合并性}
+
+\section{数据流模型}
+
+频率向量 $f\in\mathbb R^N$ 隐式地由更新流定义。更新 $(i,\Delta)$ 表示
+\[
+f_i\leftarrow f_i+\Delta.
+\]
+常见模型包括：
+\begin{description}
+  \item[insertion-only] $\Delta\ge0$；
+  \item[strict turnstile] 允许负更新，但任意时刻 $f_i\ge0$；
+  \item[general turnstile] 中间和最终频率都可为负。
+\end{description}
+算法保证必须注明模型。例如 Count-Min 的单侧上估计依赖非负频率。
+
+统一接口为：初始化、更新、查询、合并。随机 seed、哈希独立性、空间、更新时间和失败概率都属于协议的一部分。
+
+\section{Count-Min Sketch}
+
+选择 $d$ 个相互独立的通用哈希函数 $h_j:[N]\to[w]$，维护 $d\times w$ 非负计数表。更新 $(i,\Delta)$ 时，对每行执行
+\[
+C_{j,h_j(i)}\leftarrow C_{j,h_j(i)}+\Delta.
+\]
+点查询返回
+\[
+\widehat f_i=\min_{j\in[d]}C_{j,h_j(i)}.
+\]
+
+在 insertion-only 模型中，每个桶包含目标频率和碰撞噪声，因此始终有
+\[
+\widehat f_i\ge f_i.
+\]
+
+固定一行，定义碰撞噪声
+\[
+Z_j=\sum_{k\ne i:\,h_j(k)=h_j(i)}f_k.
+\]
+由通用哈希，
+\[
+\E Z_j
+\le\frac{\|f\|_1-f_i}{w}
+\le\frac{\|f\|_1}{w}.
+\]
+取 $w=\lceil e/\epsilon\rceil$，Markov 不等式给出
+\[
+\Prb[Z_j\ge\epsilon\|f\|_1]\le\frac1e.
+\]
+若 $d$ 行独立且查询取最小值，则所有行都坏的概率至多 $e^{-d}$。取
+\[
+d=\left\lceil\ln\frac1\delta\right\rceil
+\]
+可得：
+\[
+\Prb\left[f_i\le\widehat f_i
+\le f_i+\epsilon\|f\|_1\right]\ge1-\delta.
+\]
+空间为 $O(\epsilon^{-1}\log(1/\delta))$ 个计数器，更新时间为 $O(\log(1/\delta))$。
+
+\begin{warningbox}
+这是对一个预先固定查询 $i$ 的保证。若要同时保证大量 key，需 union bound 或更强结构；若查询根据 sketch 输出自适应选择，还要重新分析。
+\end{warningbox}
+
+\section{Count Sketch}
+
+Count Sketch 每行使用桶哈希 $h_j:[N]\to[w]$ 和独立符号哈希 $s_j:[N]\to\{-1,+1\}$。更新时
+\[
+C_{j,h_j(i)}\leftarrow C_{j,h_j(i)}+s_j(i)\Delta.
+\]
+第 $j$ 行对 $f_i$ 的估计为
+\[
+X_j=s_j(i)C_{j,h_j(i)}.
+\]
+展开：
+\[
+X_j=f_i+
+\sum_{k\ne i:\,h_j(k)=h_j(i)}s_j(i)s_j(k)f_k.
+\]
+随机符号使碰撞噪声均值为 0，因此 $\E X_j=f_i$。在适当独立性下，
+\[
+\Var(X_j)
+\le\frac{\|f_{-i}\|_2^2}{w},
+\]
+其中 $f_{-i}$ 表示去掉第 $i$ 个坐标。取足够宽度后，Chebyshev 给出常数成功概率；多行取中位数把失败概率降为 $\delta$。
+
+Count-Min 的噪声只有正方向，适合非负频率的单侧上界；Count Sketch 用随机符号抵消噪声，可处理 turnstile 更新和双侧误差。
+
+\section{AMS 二阶矩估计}
+
+目标是估计
+\[
+F_2=\sum_{i=1}^Nf_i^2=\|f\|_2^2.
+\]
+选取 4-wise independent 符号 $s(i)\in\{-1,+1\}$，维护线性投影
+\[
+Z=\sum_i s(i)f_i.
+\]
+每次更新 $(i,\Delta)$ 时只需执行 $Z\leftarrow Z+s(i)\Delta$。输出 $X=Z^2$。
+
+由符号均值为 0、两两独立，交叉项期望消失：
+\[
+\E X
+=\E\left(\sum_is(i)f_i\right)^2
+=\sum_if_i^2=F_2.
+\]
+利用 4-wise independence 展开四阶矩，可得
+\[
+\E[Z^4]
+=\sum_if_i^4+6\sum_{i<j}f_i^2f_j^2
+\le3F_2^2,
+\]
+所以
+\[
+\Var(X)=\E[Z^4]-F_2^2\le2F_2^2.
+\]
+独立平均 $O(1/\epsilon^2)$ 个副本得到常数概率相对误差，再用多组中位数把失败概率降为 $\delta$。
+
+\section{线性 Sketch 与可合并性}
+
+若 sketch 可写成
+\[
+S(f)=Af
+\]
+，其中 $A$ 由随机 seed 固定，则
+\[
+S(f+g)=S(f)+S(g).
+\]
+因此不同分片只要使用相同随机矩阵/哈希 seed，就可以直接合并摘要。Count-Min 的计数表、Count Sketch 和 AMS 投影都具有相应线性结构。
+
+\begin{warningbox}
+“数组形状相同”不等于可合并。若两个 sketch 使用不同 seed，逐项相加通常没有原保证；合并协议必须把随机参数视作摘要元数据。
+\end{warningbox}
+
+\section{三种 Sketch 对照}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{lXXX}
+\toprule
+方法 & 目标 & 核心随机性 & 典型误差口径\\
+\midrule
+Count-Min & 点频率 & 桶碰撞 & 单侧 $\epsilon\|f\|_1$\\
+Count Sketch & 点频率/重频项 & 桶 + 随机符号 & 双侧 $\ell_2$ 噪声\\
+AMS & $F_2$ & 随机符号投影 & 相对误差\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\section{实验应该怎样验收}
+
+固定同一输入流，至少记录：
+\begin{itemize}
+  \item exact baseline；
+  \item seed、宽度、深度和哈希族；
+  \item 平均、最大、95\% 分位误差；
+  \item 理论阈值被违反的次数；
+  \item 两段分别更新再 merge 与整段直接更新的差异；
+  \item insertion-only、strict/general turnstile 模型是否一致。
+\end{itemize}
+
+\begin{aibox}
+学习增强 Sketch 的第一步不是训练预测器，而是保持这里的经典接口与保证不变，再明确预测器提供什么 side information、预测误差如何定义、准确时收益和任意错误时回退分别是什么。
+\end{aibox}
+
+\section{小结与验收}
+
+\begin{checkpointbox}
+\begin{enumerate}
+  \item 推导 Count-Min 一行碰撞噪声的期望；
+  \item 说明“取最小值”如何把单行常数失败概率放大；
+  \item 解释 Count Sketch 的随机符号为何让噪声均值为 0；
+  \item 从 $Z=\sum_is(i)f_i$ 推导 AMS 估计的无偏性；
+  \item 写出 mergeability 对 seed 和线性更新的要求。
+\end{enumerate}
+\end{checkpointbox}

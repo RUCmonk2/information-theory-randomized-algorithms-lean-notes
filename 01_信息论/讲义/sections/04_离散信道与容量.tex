@@ -1,0 +1,138 @@
+\chapter{离散信道、互信息与容量}
+
+信源编码问“如何消除冗余”；信道编码问“如何在噪声中可靠通信”。两者使用同一个熵与互信息语言，但优化对象和允许的错误不同。
+
+\section{离散无记忆信道}
+
+\begin{definition}[离散无记忆信道]
+输入字母表为 $\mathcal X$、输出字母表为 $\mathcal Y$。信道由转移概率
+\[
+W(y|x)=\Prb[Y=y|X=x]
+\]
+描述，并满足对每个 $x$ 有 $\sum_yW(y|x)=1$。无记忆表示长度 $n$ 使用时
+\[
+W^n(y^n|x^n)=\prod_{i=1}^nW(y_i|x_i).
+\]
+\end{definition}
+
+给定输入分布 $p_X$ 后，联合分布为
+\[
+p_{XY}(x,y)=p_X(x)W(y|x),
+\]
+输出分布为 $p_Y(y)=\sum_xp_X(x)W(y|x)$。互信息 $I(X;Y)$ 衡量一次信道使用平均保留了多少关于输入的信息。
+
+\section{码、码率与错误概率}
+
+一个 $(n,M)$ 信道码包含：
+\begin{itemize}
+  \item 消息 $J$ 在 $\{1,\dots,M\}$ 中取值；
+  \item 编码器 $f:J\mapsto X^n$；
+  \item 信道产生 $Y^n\sim W^n(\cdot|X^n)$；
+  \item 解码器 $g:Y^n\mapsto\hat J$。
+\end{itemize}
+码率为
+\[
+R=\frac1n\log_2M\quad\text{bits/channel use}.
+\]
+平均错误概率为 $P_e=\Prb[\hat J\ne J]$。最大错误概率则对最坏消息取最大值；两种口径不能在结果表中混用。
+
+\section{二元对称信道 BSC}
+
+BSC$(q)$ 以概率 $q$ 翻转输入比特：
+\[
+Y=X\oplus Z,\qquad Z\sim\mathrm{Bernoulli}(q),
+\]
+且 $Z$ 与 $X$ 独立。
+
+\begin{center}
+\begin{tikzpicture}[node distance=34mm,>=Latex]
+\node (x0) {$X=0$};
+\node[below=14mm of x0] (x1) {$X=1$};
+\node[right=of x0] (y0) {$Y=0$};
+\node[below=14mm of y0] (y1) {$Y=1$};
+\draw[->] (x0) -- node[above] {$1-q$} (y0);
+\draw[->] (x0) -- node[near start,below,sloped] {$q$} (y1);
+\draw[->] (x1) -- node[near start,above,sloped] {$q$} (y0);
+\draw[->] (x1) -- node[below] {$1-q$} (y1);
+\end{tikzpicture}
+\end{center}
+
+因为给定 $X$ 后 $Y$ 的不确定性只来自噪声，
+\[
+H(Y|X)=H(Z)=h_2(q).
+\]
+所以
+\[
+I(X;Y)=H(Y)-h_2(q).
+\]
+
+\section{信道容量}
+
+\begin{definition}[容量]
+离散无记忆信道的容量定义为
+\[
+C=\max_{p_X}I(X;Y).
+\]
+最大化变量是输入分布，而信道 $W(y|x)$ 固定。
+\end{definition}
+
+\begin{theorem}[BSC 容量]
+对 $0\le q\le1/2$，
+\[
+C_{\mathrm{BSC}(q)}=1-h_2(q).
+\]
+均匀输入 $X\sim\mathrm{Bernoulli}(1/2)$ 达到容量。
+\end{theorem}
+
+\begin{proof}
+由 $I(X;Y)=H(Y)-h_2(q)$ 且二元变量熵至多为 1，
+\[
+I(X;Y)\le1-h_2(q).
+\]
+当输入均匀时，BSC 的对称性使输出也均匀，故 $H(Y)=1$，达到上界。
+\end{proof}
+
+边界情况给出直观检查：$q=0$ 时无噪声，容量为 1；$q=1/2$ 时输出独立于输入，容量为 0。若 $q>1/2$，接收端可以统一翻转输出，把交叉概率降为 $1-q$。
+
+\section{二元擦除信道 BEC}
+
+BEC$(\varepsilon)$ 以概率 $1-\varepsilon$ 正确输出输入比特，以概率 $\varepsilon$ 输出擦除符号 $?$。接收端知道哪些位置被擦除。
+
+给定均匀输入，未擦除时获得 1 bit，擦除时获得 0 bit，因此
+\[
+C_{\mathrm{BEC}(\varepsilon)}=1-\varepsilon.
+\]
+BEC 与 BSC 的区别在于：擦除位置可见，而翻转位置不可见。相同数值的 $q$ 与 $\varepsilon$ 不代表相同难度。
+
+\section{容量究竟说明什么}
+
+容量是一个渐近阈值：
+\begin{itemize}
+  \item 当 $R<C$，存在一列块长增长的码，使错误概率趋于 0；
+  \item 当 $R>C$，不可能让错误概率趋于 0。
+\end{itemize}
+容量定义本身只给出单字母优化问题。把它解释成可靠通信阈值，需要下一章的信道编码定理。
+
+\begin{warningbox}
+容量不等于某个具体码在有限块长上的吞吐量，也不包含编码/解码计算成本。随机编码证明“存在好码”，不代表已经给出可高效实现的码。
+\end{warningbox}
+
+\section{带输入成本约束的容量}
+
+若输入符号 $x$ 有成本 $c(x)$，并要求 $\E[c(X)]\le\Gamma$，容量变为
+\[
+C(\Gamma)=\max_{p_X:\,\E c(X)\le\Gamma}I(X;Y).
+\]
+这提醒我们：优化信息量时必须同时写清资源约束。AI 系统中的 token、查询、编译或 verifier 调用也有成本，但只有在建立了精确随机模型后，才能合法地套用信息论结论。
+
+\section{小结与验收}
+
+\begin{checkpointbox}
+\begin{enumerate}
+  \item 写出 DMC、$(n,M)$ 码、码率和平均错误概率的定义；
+  \item 从 $I(X;Y)=H(Y)-H(Y|X)$ 推导 BSC 容量；
+  \item 比较 BSC 与 BEC：接收端分别知道什么；
+  \item 解释容量是渐近存在性阈值，而不是有限长度代码的直接性能；
+  \item 给一个需要成本约束的现实通信或算法例子。
+\end{enumerate}
+\end{checkpointbox}

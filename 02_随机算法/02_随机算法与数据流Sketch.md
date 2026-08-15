@@ -1,5 +1,7 @@
 # 随机算法与数据流 Sketch
 
+> 完整讲解见 [随机算法自学讲义](讲义/随机算法自学讲义.pdf)第 3--4 章，其中包含 reservoir sampling、通用哈希、Count-Min、Count Sketch、AMS/F2 的算法和误差证明。
+
 ## 1. 先建立统一接口
 
 ```text
